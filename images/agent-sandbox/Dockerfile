@@ -4,7 +4,7 @@
 # Adds: Python 3, curl, jq, git, and OpenCode configuration.
 #
 # Build:
-#   docker build -f images/agent-sandbox/Dockerfile \
+#   podman build -f images/agent-sandbox/Dockerfile \
 #     -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
 
 FROM ghcr.io/nvidia/openshell-community/sandboxes/base:latest

@@ -15,7 +15,7 @@ Deploy AI coding agents with defense-in-depth using NVIDIA OpenShell and Kata Co
 
 ## Description
 
-AI coding agents need shell access to be productive — running tests,
+AI coding agents need shell access to be productive - running tests,
 editing files, installing packages, executing builds. But unrestricted
 shell access on a shared cluster creates two distinct threat classes that
 must be addressed simultaneously.
@@ -71,15 +71,15 @@ graph TB
 
 **Components:**
 
-- **Kata VM** (green) — Each agent pod runs inside a lightweight VM with
+- **Kata VM** (green) - Each agent pod runs inside a lightweight VM with
   its own guest kernel, enforced by CPU virtualization (VT-x/AMD-V).
   Kernel exploits stay contained within the VM boundary.
-- **OpenShell Sandbox** (orange) — The agent runs under an egress proxy
+- **OpenShell Sandbox** (orange) - The agent runs under an egress proxy
   (deny-all default, only the model endpoint is allowed) and Landlock
   filesystem policy (kernel-enforced path restrictions).
-- **OpenShell Gateway** — StatefulSet managing sandbox lifecycle, policy
+- **OpenShell Gateway** - StatefulSet managing sandbox lifecycle, policy
   distribution, and JWT authentication.
-- **External Model Endpoint** — Any OpenAI-compatible service (vLLM,
+- **External Model Endpoint** - Any OpenAI-compatible service (vLLM,
   OpenShift AI). Not deployed by this quickstart.
 
 ## Requirements
@@ -120,9 +120,9 @@ graph TB
 
 2. Build and push the agent sandbox image:
    ```bash
-   docker build -f images/agent-sandbox/Dockerfile \
+   podman build -f images/agent-sandbox/Dockerfile \
      -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
-   docker push ${REGISTRY}/openshell-kata-agent-sandbox:latest
+   podman push ${REGISTRY}/openshell-kata-agent-sandbox:latest
    ```
 
 ### Phase 1: Infrastructure (cluster-admin)

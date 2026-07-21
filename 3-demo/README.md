@@ -44,7 +44,7 @@ source env.sh
   [PASS] Unauthorized egress BLOCKED by OpenShell policy
 
 --- Check 3: Kata VM Isolation ---
-  [PASS] Guest kernel differs from host — Kata VM boundary confirmed
+  [PASS] Guest kernel differs from host - Kata VM boundary confirmed
 
 ══════════════════════════════════════════════════════════════
   Results

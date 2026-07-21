@@ -17,7 +17,7 @@ embeds malicious instructions in untrusted input (a git patch, an issue
 comment, a dependency README) that steer the agent toward leaking secrets
 or accessing unauthorized services.
 
-These attacks operate through normal application behavior — HTTP requests,
+These attacks operate through normal application behavior - HTTP requests,
 file reads, environment variable access. They do not require any exploit
 or vulnerability in the runtime.
 
@@ -37,12 +37,12 @@ A compromised dependency can contain kernel exploit code.
 
 NVIDIA OpenShell wraps each agent sandbox in a policy-enforced runtime:
 
-- **Network egress proxy** — All outbound connections route through a
+- **Network egress proxy** - All outbound connections route through a
   proxy that evaluates destination, port, calling binary, and protocol.
   Default posture is deny-all; only explicitly allowed endpoints pass.
-- **Filesystem isolation (Landlock)** — Kernel-enforced read/write
+- **Filesystem isolation (Landlock)** - Kernel-enforced read/write
   restrictions on filesystem paths, locked at sandbox creation.
-- **Process isolation** — The agent runs as an unprivileged user with
+- **Process isolation** - The agent runs as an unprivileged user with
   dropped capabilities.
 
 **Blocks:** Data exfiltration, unauthorized API calls, credential leakage
@@ -57,11 +57,11 @@ memory, these controls are bypassed entirely.
 Kata Containers runs each pod inside a lightweight virtual machine with
 its own dedicated guest kernel:
 
-- **Separate kernel** — The workload interacts with a guest kernel, not
+- **Separate kernel** - The workload interacts with a guest kernel, not
   the host kernel. Kernel exploits affect only the guest.
-- **Hardware-enforced isolation** — The VM boundary is enforced by CPU
+- **Hardware-enforced isolation** - The VM boundary is enforced by CPU
   virtualization extensions (VT-x / AMD-V), not by namespaces or cgroups.
-- **Memory isolation** — Guest memory (including page cache) is isolated
+- **Memory isolation** - Guest memory (including page cache) is isolated
   from host memory via virtiofs.
 
 **Blocks:** Container escape exploits, kernel privilege escalation,
@@ -111,7 +111,7 @@ boundary.
 
 **Fix:** Kernel commit `a664bf3d603d` (merged April 1, 2026). Patching
 the host kernel eliminates this specific vulnerability, but the broader
-pattern — kernel bugs that bypass container isolation — is ongoing. Kata
+pattern - kernel bugs that bypass container isolation - is ongoing. Kata
 provides structural protection against this entire class.
 
 ## Policy Configuration Reference

@@ -14,7 +14,7 @@ server:
   # RuntimeClass is set per-sandbox via --driver-config-json, not globally
   defaultRuntimeClassName: ""
 
-  # Kata shim does not support ImageVolume — force init-container delivery
+  # Kata shim does not support ImageVolume - force init-container delivery
   forceInitContainerSideload: true
 
   sandboxImage: "REGISTRY_PLACEHOLDER/openshell-kata-agent-sandbox:latest"

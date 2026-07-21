@@ -115,7 +115,7 @@ elif echo "${OUTPUT}" | grep -qi "timed out\|timeout"; then
     pass "Unauthorized egress blocked (connection timed out)"
     CHECKS_PASSED=$((CHECKS_PASSED + 1))
 else
-    fail "Egress was NOT blocked — check OpenShell policy configuration"
+    fail "Egress was NOT blocked - check OpenShell policy configuration"
     info "Output: $(echo "${OUTPUT}" | head -3)"
 fi
 
@@ -133,7 +133,7 @@ info "Host kernel:  ${HOST_KERNEL}"
 info "Guest kernel: $(echo "${GUEST_KERNEL}" | head -1)"
 
 if [ -n "${GUEST_KERNEL}" ] && [ "${GUEST_KERNEL}" != "${HOST_KERNEL}" ]; then
-    pass "Guest kernel differs from host — Kata VM boundary confirmed"
+    pass "Guest kernel differs from host - Kata VM boundary confirmed"
     CHECKS_PASSED=$((CHECKS_PASSED + 1))
 else
     warn "Could not confirm separate guest kernel"

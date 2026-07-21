@@ -15,8 +15,8 @@ agent sandbox (OpenShell + Kata).
 - Container image built and pushed:
   ```bash
   source env.sh
-  docker build -f images/agent-sandbox/Dockerfile -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
-  docker push ${REGISTRY}/openshell-kata-agent-sandbox:latest
+  podman build -f images/agent-sandbox/Dockerfile -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
+  podman push ${REGISTRY}/openshell-kata-agent-sandbox:latest
   ```
 
 ## Deploy

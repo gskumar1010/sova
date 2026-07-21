@@ -39,7 +39,7 @@ info "Running preflight checks..."
 
 command -v oc        >/dev/null || fatal "oc CLI not found"
 command -v helm      >/dev/null || fatal "helm not found"
-command -v openshell >/dev/null || warn "openshell CLI not found — sandbox creation will fail"
+command -v openshell >/dev/null || warn "openshell CLI not found - sandbox creation will fail"
 oc whoami >/dev/null 2>&1      || fatal "Not logged in to OpenShift (run oc login first)"
 
 [ -n "${REGISTRY:-}" ]       || fatal "REGISTRY not set. Source env.sh first."
@@ -64,7 +64,7 @@ oc patch scc openshell-kata \
     -p="[
       {\"op\":\"add\",\"path\":\"/users/-\",\"value\":\"system:serviceaccount:${NAMESPACE}:openshell\"},
       {\"op\":\"add\",\"path\":\"/users/-\",\"value\":\"system:serviceaccount:${NAMESPACE}:openshell-sandbox\"}
-    ]" 2>/dev/null || warn "SCC patch failed — users may already be present"
+    ]" 2>/dev/null || warn "SCC patch failed - users may already be present"
 
 # --- 3. API key secret ---
 
@@ -199,4 +199,4 @@ echo ""
 info "OpenShell sandbox:"
 openshell sandbox list 2>/dev/null || true
 echo ""
-info "Next step: Phase 3 — Verify (see 3-demo/README.md)"
+info "Next step: Phase 3 - Verify (see 3-demo/README.md)"
