@@ -40,18 +40,47 @@ neither technology addresses alone.
 
 ## Architecture
 
-![Architecture](docs/images/architecture.png)
+```mermaid
+graph TB
+    subgraph cluster["OpenShift Cluster · Namespace: openshell-kata"]
+        gw["OpenShell Gateway<br/><i>StatefulSet</i>"]
 
-The deployment consists of:
+        subgraph kata_vm["Kata VM · hardware-isolated · guest kernel"]
+            subgraph sandbox["OpenShell Sandbox"]
+                agent["AI Coding Agent<br/><i>OpenCode</i>"]
+                proxy["Egress Proxy<br/><i>deny-all default</i>"]
+                landlock["Landlock FS Policy"]
+            end
+        end
+    end
 
-- **OpenShift worker nodes** with Kata Containers installed (lightweight
-  VMs via hardware virtualization)
-- **OpenShell gateway** running as a StatefulSet, managing sandbox
-  lifecycle and policy enforcement
-- **Agent sandbox pod** running inside a Kata VM with OpenShell
-  supervisor (Landlock filesystem policy + network egress proxy)
-- **External model endpoint** (vLLM, OpenShift AI, or any
-  OpenAI-compatible service)
+    model["Model Endpoint<br/><i>vLLM / OpenShift AI</i>"]
+    blocked["Blocked"]
+
+    gw -- "lifecycle + policy" --> sandbox
+    agent --> proxy
+    proxy -- "allowed" --> model
+    proxy -. "denied" .-> blocked
+
+    style kata_vm fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style sandbox fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    style cluster fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style blocked fill:#ffcdd2,stroke:#c62828,color:#c62828
+    style model fill:#f3e5f5,stroke:#7b1fa2
+```
+
+**Components:**
+
+- **Kata VM** (green) — Each agent pod runs inside a lightweight VM with
+  its own guest kernel, enforced by CPU virtualization (VT-x/AMD-V).
+  Kernel exploits stay contained within the VM boundary.
+- **OpenShell Sandbox** (orange) — The agent runs under an egress proxy
+  (deny-all default, only the model endpoint is allowed) and Landlock
+  filesystem policy (kernel-enforced path restrictions).
+- **OpenShell Gateway** — StatefulSet managing sandbox lifecycle, policy
+  distribution, and JWT authentication.
+- **External Model Endpoint** — Any OpenAI-compatible service (vLLM,
+  OpenShift AI). Not deployed by this quickstart.
 
 ## Requirements
 
