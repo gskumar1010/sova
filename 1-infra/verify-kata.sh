@@ -45,8 +45,10 @@ if oc wait --for=jsonpath='{.status.phase}'=Succeeded "pod/${TEST_POD}" \
     echo "RESULT: Kata is functional."
 else
     echo ""
-    echo "WARNING: Test pod did not succeed. Check pod status:"
+    echo "ERROR: Test pod did not succeed. Check pod status:"
     oc get pod "${TEST_POD}" -o wide 2>/dev/null || true
+    oc delete pod "${TEST_POD}" --ignore-not-found --wait=false >/dev/null 2>&1 || true
+    exit 1
 fi
 
 # Clean up test pod

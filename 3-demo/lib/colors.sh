@@ -29,8 +29,3 @@ fail()    { echo -e "  ${RED}[FAIL]${NC} $*"; }
 info()    { echo -e "  ${DIM}[INFO]${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}[WARN]${NC} $*"; }
 result()  { echo -e "  ${BOLD}$*${NC}"; }
-
-leaked()    { echo -e "  ${RED}${BOLD}[DATA LEAKED]${NC} $*"; }
-blocked()   { echo -e "  ${GREEN}${BOLD}[BLOCKED]${NC} $*"; }
-contained() { echo -e "  ${GREEN}${BOLD}[CONTAINED]${NC} $*"; }
-compromised() { echo -e "  ${RED}${BOLD}[HOST COMPROMISED]${NC} $*"; }

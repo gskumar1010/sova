@@ -5,10 +5,10 @@
 # and the host's own binaries via chroot to /host.
 #
 # Usage:
-#   oc apply -f infra/kata-veth-patch-job.yaml
+#   oc apply -f 1-infra/kata-veth-patch-job.yaml
 #   oc get pods -n openshift-sandboxed-containers-operator -l app=kata-veth-patch
 #   # After all pods show Running (sleeping), clean up:
-#   oc delete -f infra/kata-veth-patch-job.yaml
+#   oc delete -f 1-infra/kata-veth-patch-job.yaml
 ---
 apiVersion: apps/v1
 kind: DaemonSet

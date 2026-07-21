@@ -2,7 +2,7 @@
 # run-demo.sh -- Verify that the dual-protection sandbox is operational
 #
 # Runs three checks:
-#   1. Agent can reach the model endpoint (functional)
+#   1. Agent can execute commands inside the sandbox (functional)
 #   2. Unauthorized egress is blocked (OpenShell policy)
 #   3. Kata VM isolation is active (guest kernel)
 #

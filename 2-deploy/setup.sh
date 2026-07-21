@@ -71,36 +71,25 @@ oc patch scc openshell-kata \
 info "Creating API key secret..."
 if ! oc get secret opencode-api-keys -n "${NAMESPACE}" >/dev/null 2>&1; then
     oc create secret generic opencode-api-keys -n "${NAMESPACE}" \
-        --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}"
+        --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}" \
+        --from-literal=OPENAI_BASE_URL="${MODEL_ENDPOINT}/v1"
     info "Created opencode-api-keys secret."
 else
     info "Secret opencode-api-keys already exists, skipping."
 fi
 
-# --- 4. OpenCode config ConfigMap ---
+# --- 4. Parse MODEL_ENDPOINT for OpenShell policy ---
 
-info "Creating OpenCode config ConfigMap..."
+info "Parsing MODEL_ENDPOINT for OpenShell policy..."
 # Parse host and port from MODEL_ENDPOINT for the OpenShell policy
-MODEL_HOST=$(echo "${MODEL_ENDPOINT}" | sed -E 's|^https?://||' | cut -d: -f1)
-MODEL_PORT=$(echo "${MODEL_ENDPOINT}" | sed -E 's|^https?://||' | cut -d: -f2 | cut -d/ -f1)
-[ -z "${MODEL_PORT}" ] && MODEL_PORT="8000"
-
-OPENCODE_CONFIG=$(cat <<CFGEOF
-{
-  "\$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "openai": {
-      "api_key": "env:OPENAI_API_KEY",
-      "base_url": "${MODEL_ENDPOINT}/v1"
-    }
-  }
-}
-CFGEOF
-)
-
-oc create configmap opencode-config -n "${NAMESPACE}" \
-    --from-literal=config.json="${OPENCODE_CONFIG}" \
-    --dry-run=client -o yaml | oc apply -f -
+_no_scheme=$(echo "${MODEL_ENDPOINT}" | sed -E 's|^https?://||')
+_hostport=$(echo "${_no_scheme}" | cut -d/ -f1)
+MODEL_HOST=$(echo "${_hostport}" | cut -d: -f1)
+if echo "${_hostport}" | grep -q ':'; then
+    MODEL_PORT=$(echo "${_hostport}" | cut -d: -f2)
+else
+    MODEL_PORT="8000"
+fi
 
 # --- 5. OpenShell gateway ---
 
