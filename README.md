@@ -1,4 +1,4 @@
-# Secure AI Coding Agents with OpenShell and Kata Containers on OpenShift
+# Secure AI Agents with OpenShell and Kata on OpenShift
 
 Deploy AI coding agents with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
 
@@ -38,7 +38,7 @@ isolation), while **Kata Containers** provides hardware-enforced VM
 isolation at the kernel level. Together they cover threat classes that
 neither technology addresses alone.
 
-### Architecture
+## Architecture
 
 ![Architecture](docs/images/architecture.png)
 
@@ -116,7 +116,7 @@ Confirm that the agent works and security boundaries are enforced.
 
 → See [3-demo/README.md](3-demo/README.md)
 
-### Delete
+## Delete
 
 Remove all quickstart resources:
 
