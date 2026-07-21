@@ -1,0 +1,46 @@
+# Helm values for OpenShell on OpenShift with Kata Containers
+#
+# Usage:
+#   helm install openshell oci://ghcr.io/nvidia/openshell/helm-chart \
+#     -n ${NAMESPACE} -f 2-deploy/openshell-helm-values.yaml
+
+server:
+  disableTls: true
+  logLevel: info
+
+  auth:
+    allowUnauthenticatedUsers: true
+
+  # RuntimeClass is set per-sandbox via --driver-config-json, not globally
+  defaultRuntimeClassName: ""
+
+  # Kata shim does not support ImageVolume — force init-container delivery
+  forceInitContainerSideload: true
+
+  sandboxImage: "REGISTRY_PLACEHOLDER/openshell-kata-agent-sandbox:latest"
+  sandboxImagePullPolicy: "Always"
+
+  sandboxNamespace: ""
+
+supervisor:
+  sideloadMethod: init-container
+
+pkiInitJob:
+  enabled: false
+
+podSecurityContext:
+  fsGroup: 0
+
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  capabilities:
+    drop: []
+
+networkPolicy:
+  enabled: false
+
+service:
+  type: NodePort
+
+replicaCount: 1
