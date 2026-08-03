@@ -114,7 +114,7 @@ it outside is correct, not a compromise; the security thesis is untouched.
 | Finding | Resolution |
 |---|---|
 | No user-facing UI (L1 gate) | Streamlit Travel UI with a Route |
-| Title lacks action verb | Retitle → `Deploy a Secure AI Travel Agent with OpenShell and Kata` (~55 chars, within limit) |
+| Title lacks action verb | Retitle → `Deploy Secure AI Travel Agents with OpenShell and Kata on OpenShift` (67 chars; starts with a verb, names OpenShell + Kata + OpenShift). Fallback if a hard length limit is enforced: `Deploy Secure Travel Agents with OpenShell and Kata on OpenShift` (64 chars). No length limit is confirmed — the evaluator reported the old title's length without penalizing it. |
 | Missing Industry tag | Add to Tags — proposed `Travel and Transportation` (confirm against official CONTRIBUTING.md taxonomy, not present in this repo) |
 | Weak business use case | New README "Business Use Case" section: the travel scenario + audience |
 | `docs/images/` only `.gitkeep` | Add rendered architecture diagram (PNG from Mermaid) + UI screenshots incl. blocked-egress moment; reference in README |
