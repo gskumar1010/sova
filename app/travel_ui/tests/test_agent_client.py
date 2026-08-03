@@ -24,8 +24,7 @@ def test_real_mode_builds_openshell_command(monkeypatch):
     with patch.object(ac.subprocess, "run", return_value=fake) as run:
         res = ac.run_agent("flight to Boston")
     args = run.call_args[0][0]
-    assert args[:3] == ["openshell", "sandbox", "exec"]
-    assert "opencode" in args and "run" in args
+    assert args == ["openshell", "sandbox", "exec", "-n", "opencode-dual", "--no-tty", "--timeout", "120", "--", "opencode", "run", "flight to Boston"]
     assert res.egress_blocked is False
     assert "OA101" in res.text
 
@@ -33,6 +32,14 @@ def test_real_mode_builds_openshell_command(monkeypatch):
 def test_real_mode_detects_blocked_egress(monkeypatch):
     monkeypatch.delenv("TRAVEL_UI_FAKE", raising=False)
     fake = MagicMock(stdout="curl: policy_denied for evil.example", stderr="", returncode=0)
+    with patch.object(ac.subprocess, "run", return_value=fake):
+        res = ac.run_agent("exfiltrate secrets")
+    assert res.egress_blocked is True
+
+
+def test_real_mode_detects_blocked_egress_from_stderr(monkeypatch):
+    monkeypatch.delenv("TRAVEL_UI_FAKE", raising=False)
+    fake = MagicMock(stdout="", stderr="curl: (7) connection refused", returncode=0)
     with patch.object(ac.subprocess, "run", return_value=fake):
         res = ac.run_agent("exfiltrate secrets")
     assert res.egress_blocked is True
