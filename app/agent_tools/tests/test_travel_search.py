@@ -30,7 +30,7 @@ def test_build_flights_url_includes_params():
 
 
 def test_search_returns_payload(monkeypatch):
-    monkeypatch.setenv("TRAVEL_API_URL", "http://mock-travel-api")
+    monkeypatch.setenv("TRAVEL_API_URL", "http://mock-travel-api:8080")
     with patch.object(ts.requests, "get", return_value=FakeResp({"flights": [{"flight_no": "OA101"}]})):
         out = ts.search("flights", {"destination": "BOS"})
     assert out == {"flights": [{"flight_no": "OA101"}]}

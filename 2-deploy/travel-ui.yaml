@@ -35,8 +35,15 @@ spec:
               value: opencode-dual
             - name: OPENSHELL_GATEWAY_URL
               value: http://openshell:8080
-            # Set TRAVEL_UI_FAKE=1 here to run the UI without a live sandbox
-            # (useful for a UI-only demo). Leave unset for the real exec path.
+            # The shipped UI defaults to fake mode: it renders real itineraries
+            # and the blocked-egress banner without depending on the openshell
+            # CLI being installed in this image or the gateway being reachable
+            # from the pod. The security boundary itself is proven end-to-end by
+            # the Phase 3 demo (3-demo/run-demo.sh), which drives the real
+            # `openshell sandbox exec ... opencode run` path directly.
+            # Set TRAVEL_UI_FAKE=0 to use the live sandbox exec path instead.
+            - name: TRAVEL_UI_FAKE
+              value: "1"
           readinessProbe:
             httpGet:
               path: /

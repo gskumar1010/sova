@@ -59,6 +59,14 @@ visibly, in the same UI.
 
 ![Blocked egress](docs/images/ui-blocked-egress.png)
 
+> **Note:** The shipped UI runs in a self-contained demo mode
+> (`TRAVEL_UI_FAKE=1`) so it renders real itineraries and the blocked-egress
+> banner without depending on the `openshell` CLI being present in the UI image.
+> The security boundary is proven end-to-end by the [Phase 3 demo](3-demo/README.md),
+> which drives the real `openshell sandbox exec ... opencode run` path directly.
+> Set `TRAVEL_UI_FAKE=0` in `2-deploy/travel-ui.yaml` to wire the UI to the live
+> sandbox.
+
 ## Architecture
 
 ![Architecture](docs/images/architecture.png)

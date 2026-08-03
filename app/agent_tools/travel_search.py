@@ -11,7 +11,10 @@ import sys
 
 import requests
 
-DEFAULT_BASE = "http://mock-travel-api"
+# Port 8080 is required: the OpenShell egress policy allowlists
+# mock-travel-api:8080 exactly, and the Service exposes 8080. Any other port
+# (e.g. the default 80) is denied by the policy proxy.
+DEFAULT_BASE = "http://mock-travel-api:8080"
 
 
 def base_url() -> str:
