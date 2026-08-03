@@ -7,3 +7,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 .pytest_cache/
+
+# Playwright MCP scratch output (screenshots captured to docs/images)
+.playwright-mcp/
