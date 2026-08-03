@@ -8,7 +8,7 @@ SANDBOX_NAME="opencode-dual"
 # This ensures the command runs inside the supervised sandbox
 # (network namespace with policy proxy active).
 pod_exec() {
-    openshell sandbox exec -n "${SANDBOX_NAME}" --no-tty --timeout 30 -- "$@" 2>&1
+    openshell sandbox exec -n "${SANDBOX_NAME}" --no-tty --timeout 120 -- "$@" 2>&1
 }
 
 # Check if the sandbox pod is running

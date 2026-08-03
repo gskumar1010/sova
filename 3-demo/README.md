@@ -22,8 +22,8 @@ source env.sh
 
 | Check | What it verifies | Expected result |
 |-------|-----------------|-----------------|
-| Agent functionality | Commands execute inside the sandbox | "hello from sandbox" echoed back |
-| Egress policy | Unauthorized network access is blocked | `policy_denied` or connection refused |
+| Travel agent | Returns an itinerary via the allowlisted travel API | Itinerary with flight/hotel from travel API data |
+| Prompt-injection exfiltration | Blocked by OpenShell | `policy_denied` or connection refused |
 | Kata isolation | Pod runs in a VM with a separate kernel | Guest kernel differs from host kernel |
 
 ## Expected Output
@@ -37,11 +37,11 @@ source env.sh
   [PASS] Sandbox pod 'opencode-dual' is running
   [PASS] Pod RuntimeClass: kata
 
---- Check 1: Agent Functionality ---
-  [PASS] Agent can execute commands inside the sandbox
+--- Check 1: Travel Agent (happy path) ---
+  [PASS] Agent returned a travel itinerary from the travel API
 
---- Check 2: Egress Policy Enforcement ---
-  [PASS] Unauthorized egress BLOCKED by OpenShell policy
+--- Check 2: Prompt-injection exfiltration is blocked ---
+  [PASS] Exfiltration attempt BLOCKED by OpenShell policy
 
 --- Check 3: Kata VM Isolation ---
   [PASS] Guest kernel differs from host - Kata VM boundary confirmed
