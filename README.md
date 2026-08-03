@@ -118,7 +118,8 @@ graph TB
    source env.sh
    ```
 
-2. Build and push the agent sandbox image:
+2. Build and push the images (the sandbox image; `setup.sh` also builds the
+   mock travel API and travel UI images):
    ```bash
    podman build -f images/agent-sandbox/Dockerfile \
      -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
