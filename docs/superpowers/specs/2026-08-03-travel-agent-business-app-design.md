@@ -29,14 +29,23 @@ without rearchitecting the security boundary.
 ## Guiding principle
 
 The security architecture stays the star. OpenCode remains inside the
-Kata + OpenShell sandbox, now run in **`serve` (HTTP API) mode** instead of the
-interactive TUI. Everything new is either a thin presentation client *outside*
-the boundary or a tool/allowlist entry *inside* it. "Travel booking" is achieved
-by configuring OpenCode with a travel tool + system prompt, not by introducing a
-new agent framework.
+Kata + OpenShell sandbox, invoked **headlessly via `opencode run`** through
+`openshell sandbox exec` (the same supervised-exec path the existing demo uses)
+instead of the interactive TUI. Everything new is either a thin presentation
+client *outside* the boundary or a tool/allowlist entry *inside* it. "Travel
+booking" is achieved by giving OpenCode a travel-search tool + an AGENTS.md
+persona, not by introducing a new agent framework.
 
-Reference: OpenCode headless server (`opencode serve`, HTTP API + official SDK +
-OpenAPI spec) — https://opencode.ai/docs/server/ and https://opencode.ai/docs/cli/
+Runtime wiring note: an earlier draft assumed `opencode serve` (HTTP API) driven
+directly by the UI. That would require exposing a sandbox port through the
+OpenShell gateway — not a supported OpenShell feature. Using
+`openshell sandbox exec -- opencode run "<prompt>"` avoids port exposure, reuses
+a proven mechanism, and ensures **every** agent invocation runs under the
+OpenShell policy proxy. The gateway is deployed with
+`auth.allowUnauthenticatedUsers: true`, so the UI pod reaches the in-cluster
+gateway service without JWT plumbing.
+
+Reference: OpenCode headless CLI (`opencode run`) — https://opencode.ai/docs/cli/
 
 ## Architecture
 
@@ -45,14 +54,14 @@ OpenAPI spec) — https://opencode.ai/docs/server/ and https://opencode.ai/docs/
         │
         ▼
 [ Travel UI pod (Streamlit) ]      ← outside the boundary; presentation only, no shell
-        │  HTTP
+        │  openshell sandbox exec -- opencode run "<prompt>"
         ▼
-[ OpenShell Gateway ]              ← JWT, lifecycle, policy distribution
+[ OpenShell Gateway ]              ← unauth in this quickstart, lifecycle, policy
         │
         ▼
 ┌─ Kata VM (hardware isolation, guest kernel) ─────────────┐
 │   OpenShell sandbox                                      │
-│     • OpenCode agent (serve mode)          ← unchanged   │
+│     • OpenCode agent (opencode run)        ← unchanged   │
 │     • travel-search tool → Mock Travel API (ALLOW)       │
 │     • egress proxy: model endpoint + Mock Travel API only│
 │     • any other egress (exfil attempt)      → DENY       │
@@ -75,15 +84,15 @@ it outside is correct, not a compromise; the security thesis is untouched.
 |---|---|---|---|
 | Travel UI (Streamlit) | New pod, exposed via Route | Chat → itinerary; visibly surfaces egress DENY | New |
 | Mock Travel API (FastAPI) | New pod + Service | Canned flights + hotels; the allowed egress target | New |
-| Travel tool + system prompt | Inside sandbox (OpenCode config) | Turns OpenCode into a travel agent | Config change |
-| OpenCode `serve` mode | Inside sandbox | Expose HTTP API for the UI to drive | Config change |
+| Travel tool + AGENTS.md persona | Inside sandbox (baked into image) | Turns OpenCode into a travel agent | Config change |
+| OpenCode headless (`opencode run` via `openshell sandbox exec`) | Inside sandbox | UI delivers prompts under the policy proxy | Config change |
 | Egress allowlist entry | OpenShell policy | Allow Mock Travel API service + model; deny all else | Config change |
 
 ## Data flow
 
 1. User asks the UI: *"Find a flight to Boston next Tuesday under $300 and a
    hotel near downtown."*
-2. UI → OpenShell Gateway → OpenCode `serve` (`session.prompt`).
+2. UI backend runs `openshell sandbox exec -n opencode-dual -- opencode run "<prompt>"`.
 3. OpenCode invokes the travel-search tool, which calls the Mock Travel API.
 4. Egress proxy **allows** the Mock Travel API + model endpoint; **denies**
    anything else.
@@ -130,7 +139,9 @@ it outside is correct, not a compromise; the security thesis is untouched.
 
 ## Open items to confirm during implementation
 
-- Exact OpenCode custom-tool mechanism (MCP server vs. simple tool script) —
-  pick the lightest that works with `serve` mode.
-- Confirm final title length against the official quickstart limit.
-- Confirm the official Industry taxonomy value.
+- Confirm the official Industry taxonomy value (`Travel and Transportation`
+  proposed) against the org CONTRIBUTING.md when available.
+- Screenshots for `docs/images/` are produced by running the Streamlit UI
+  locally in a fake-backend mode (`TRAVEL_UI_FAKE=1`, canned itinerary +
+  blocked-egress responses) and capturing with a headless browser — no cluster
+  required to generate them.
