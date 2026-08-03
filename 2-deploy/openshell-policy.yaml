@@ -27,3 +27,14 @@ network_policies:
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/bin/python3 }
+  travel_api:
+    name: travel-api
+    endpoints:
+      - host: mock-travel-api
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/bin/python3 }

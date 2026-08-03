@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: travel-ui
+  labels:
+    app.kubernetes.io/part-of: openshell-kata
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: travel-ui
+  labels:
+    app.kubernetes.io/name: travel-ui
+    app.kubernetes.io/part-of: openshell-kata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: travel-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: travel-ui
+        app.kubernetes.io/part-of: openshell-kata
+    spec:
+      serviceAccountName: travel-ui
+      containers:
+        - name: ui
+          image: REGISTRY_PLACEHOLDER/openshell-kata-travel-ui:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8501
+          env:
+            - name: SANDBOX_NAME
+              value: opencode-dual
+            - name: OPENSHELL_GATEWAY_URL
+              value: http://openshell:8080
+            # Set TRAVEL_UI_FAKE=1 here to run the UI without a live sandbox
+            # (useful for a UI-only demo). Leave unset for the real exec path.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: travel-ui
+  labels:
+    app.kubernetes.io/name: travel-ui
+    app.kubernetes.io/part-of: openshell-kata
+spec:
+  selector:
+    app.kubernetes.io/name: travel-ui
+  ports:
+    - name: http
+      port: 8501
+      targetPort: 8501
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: travel-ui
+  labels:
+    app.kubernetes.io/name: travel-ui
+    app.kubernetes.io/part-of: openshell-kata
+spec:
+  to:
+    kind: Service
+    name: travel-ui
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
