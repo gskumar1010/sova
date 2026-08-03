@@ -1,6 +1,6 @@
 # Deploy Secure AI Travel Agents with OpenShell and Kata on OpenShift
 
-Deploy AI coding agents with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
+Deploy AI agents with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
 
 ## Table of Contents
 
