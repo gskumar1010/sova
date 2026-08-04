@@ -1,0 +1,35 @@
+graph TB
+    user["User (browser)"]
+    travelui["Travel UI (Streamlit)"]
+
+    subgraph cluster["OpenShift Cluster · Namespace: openshell-kata"]
+        gw["OpenShell Gateway<br/><i>StatefulSet</i>"]
+        mockapi["Mock Travel API<br/><i>FastAPI</i>"]
+
+        subgraph kata_vm["Kata VM · hardware-isolated · guest kernel"]
+            subgraph sandbox["OpenShell Sandbox"]
+                agent["AI Coding Agent<br/><i>OpenCode</i>"]
+                proxy["Egress Proxy<br/><i>deny-all default</i>"]
+                landlock["Landlock FS Policy"]
+            end
+        end
+    end
+
+    model["Model Endpoint<br/><i>vLLM / OpenShift AI</i>"]
+    blocked["Blocked"]
+
+    user -.-> travelui
+    travelui --> gw
+    gw -- "lifecycle + policy" --> sandbox
+    agent --> proxy
+    proxy -- "allowed" --> model
+    proxy -- "allowed" --> mockapi
+    proxy -. "denied" .-> blocked
+
+    style kata_vm fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style sandbox fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    style cluster fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style blocked fill:#ffcdd2,stroke:#c62828,color:#c62828
+    style model fill:#f3e5f5,stroke:#7b1fa2
+    style travelui fill:#e0f7fa,stroke:#00838f
+    style mockapi fill:#f3e5f5,stroke:#7b1fa2

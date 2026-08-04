@@ -1,10 +1,11 @@
-# Secure AI Agents with OpenShell and Kata on OpenShift
+# Deploy Secure AI Travel Agents with OpenShell and Kata on OpenShift
 
-Deploy AI coding agents with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
+Deploy AI agents with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
 
 ## Table of Contents
 
 - [Description](#description)
+- [Business Use Case](#business-use-case)
 - [Architecture](#architecture)
 - [Requirements](#requirements)
 - [Deploy](#deploy)
@@ -38,12 +39,46 @@ isolation), while **Kata Containers** provides hardware-enforced VM
 isolation at the kernel level. Together they cover threat classes that
 neither technology addresses alone.
 
+## Business Use Case
+
+This quickstart deploys a **travel booking assistant**: a chat UI where a user
+asks for flights and hotels in natural language, and an AI agent assembles an
+itinerary by calling a travel API. It is a stand-in for any enterprise agent
+that must call external services on a user's behalf - booking, procurement,
+support - where the agent handles untrusted input and executes tool calls.
+
+The point of the quickstart is that this agent runs inside a **dual-protection
+boundary**: OpenShell restricts its network egress to exactly the travel API and
+the model endpoint, and Kata isolates it in a hardware VM. When a prompt
+injection tries to make the agent exfiltrate data, the egress policy blocks it -
+visibly, in the same UI.
+
+![Travel agent itinerary](docs/images/ui-itinerary.png)
+
+*A prompt-injection attempt to exfiltrate data is blocked by the OpenShell egress policy:*
+
+![Blocked egress](docs/images/ui-blocked-egress.png)
+
+> **Note:** The shipped UI runs in a self-contained demo mode
+> (`TRAVEL_UI_FAKE=1`) so it renders real itineraries and the blocked-egress
+> banner without depending on the `openshell` CLI being present in the UI image.
+> The security boundary is proven end-to-end by the [Phase 3 demo](3-demo/README.md),
+> which drives the real `openshell sandbox exec ... opencode run` path directly.
+> Set `TRAVEL_UI_FAKE=0` in `2-deploy/travel-ui.yaml` to wire the UI to the live
+> sandbox.
+
 ## Architecture
+
+![Architecture](docs/images/architecture.png)
 
 ```mermaid
 graph TB
+    user["User (browser)"]
+    travelui["Travel UI (Streamlit)"]
+
     subgraph cluster["OpenShift Cluster · Namespace: openshell-kata"]
         gw["OpenShell Gateway<br/><i>StatefulSet</i>"]
+        mockapi["Mock Travel API<br/><i>FastAPI</i>"]
 
         subgraph kata_vm["Kata VM · hardware-isolated · guest kernel"]
             subgraph sandbox["OpenShell Sandbox"]
@@ -57,9 +92,12 @@ graph TB
     model["Model Endpoint<br/><i>vLLM / OpenShift AI</i>"]
     blocked["Blocked"]
 
+    user -.-> travelui
+    travelui --> gw
     gw -- "lifecycle + policy" --> sandbox
     agent --> proxy
     proxy -- "allowed" --> model
+    proxy -- "allowed" --> mockapi
     proxy -. "denied" .-> blocked
 
     style kata_vm fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -67,6 +105,8 @@ graph TB
     style cluster fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style blocked fill:#ffcdd2,stroke:#c62828,color:#c62828
     style model fill:#f3e5f5,stroke:#7b1fa2
+    style travelui fill:#e0f7fa,stroke:#00838f
+    style mockapi fill:#f3e5f5,stroke:#7b1fa2
 ```
 
 **Components:**
@@ -75,10 +115,16 @@ graph TB
   its own guest kernel, enforced by CPU virtualization (VT-x/AMD-V).
   Kernel exploits stay contained within the VM boundary.
 - **OpenShell Sandbox** (orange) - The agent runs under an egress proxy
-  (deny-all default, only the model endpoint is allowed) and Landlock
-  filesystem policy (kernel-enforced path restrictions).
+  (deny-all default; only the model endpoint and the travel API are
+  allowed) and Landlock filesystem policy (kernel-enforced path
+  restrictions).
 - **OpenShell Gateway** - StatefulSet managing sandbox lifecycle, policy
   distribution, and JWT authentication.
+- **Travel UI** - A Streamlit chat app, exposed via an OpenShift Route,
+  that sends user prompts to the agent through the gateway. It is a thin
+  presentation client and sits outside the security boundary.
+- **Mock Travel API** - A FastAPI service returning canned flights and
+  hotels. It is the one business endpoint the agent is allowed to call.
 - **External Model Endpoint** - Any OpenAI-compatible service (vLLM,
   OpenShift AI). Not deployed by this quickstart.
 
@@ -103,8 +149,9 @@ graph TB
 
 ### Additional Requirements
 
-- An **OpenAI-compatible model endpoint** (vLLM, OpenShift AI, or
-  similar) accessible from the cluster
+- An **OpenAI-compatible model endpoint**. We recommend an open-weight model
+  such as **IBM Granite** served via **Red Hat OpenShift AI** (vLLM); any
+  OpenAI-compatible endpoint works. Set it in `env.sh` as `MODEL_ENDPOINT`.
 - A **container image registry** you can push to (e.g., Quay.io)
 
 ## Deploy
@@ -118,7 +165,8 @@ graph TB
    source env.sh
    ```
 
-2. Build and push the agent sandbox image:
+2. Build and push the images (the sandbox image; `setup.sh` also builds the
+   mock travel API and travel UI images):
    ```bash
    podman build -f images/agent-sandbox/Dockerfile \
      -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
@@ -186,4 +234,5 @@ analysis, design rationale, and CVE case studies.
 
 - **Product:** Red Hat OpenShift, OpenShift Sandboxed Containers
 - **Partner:** NVIDIA
+- **Industry:** Travel and Transportation
 - **Use case:** Security

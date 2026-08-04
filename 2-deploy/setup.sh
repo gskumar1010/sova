@@ -51,10 +51,22 @@ info "Registry:       ${REGISTRY}"
 info "Namespace:      ${NAMESPACE}"
 info "Model endpoint: ${MODEL_ENDPOINT}"
 
+# --- Build and push app images ---
+
+info "Building and pushing app images..."
+podman build -f images/mock-travel-api/Dockerfile \
+    -t "${REGISTRY}/openshell-kata-mock-travel-api:latest" .
+podman push "${REGISTRY}/openshell-kata-mock-travel-api:latest"
+podman build -f images/travel-ui/Dockerfile \
+    -t "${REGISTRY}/openshell-kata-travel-ui:latest" .
+podman push "${REGISTRY}/openshell-kata-travel-ui:latest"
+
 # --- 1. Namespace and SCC ---
 
-info "Creating namespace and SCC..."
-oc apply -k "${SCRIPT_DIR}"
+info "Creating namespace, SCC, mock travel API, and travel UI..."
+oc kustomize "${SCRIPT_DIR}" \
+    | sed "s|REGISTRY_PLACEHOLDER|${REGISTRY}|g" \
+    | oc apply -f -
 
 # --- 2. SCC binding ---
 
@@ -198,5 +210,12 @@ oc get pod opencode-dual -n "${NAMESPACE}" -o wide 2>/dev/null || true
 echo ""
 info "OpenShell sandbox:"
 openshell sandbox list 2>/dev/null || true
+info "Waiting for travel UI..."
+oc -n "${NAMESPACE}" rollout status deployment/travel-ui --timeout=120s || warn "travel-ui not ready"
+UI_HOST=$(oc get route travel-ui -n "${NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+if [ -n "${UI_HOST}" ]; then
+    info "Travel UI: https://${UI_HOST}"
+fi
+
 echo ""
 info "Next step: Phase 3 - Verify (see 3-demo/README.md)"
