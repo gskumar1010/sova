@@ -59,13 +59,14 @@ visibly, in the same UI.
 
 ![Blocked egress](docs/images/ui-blocked-egress.png)
 
-> **Note:** The shipped UI runs in a self-contained demo mode
-> (`TRAVEL_UI_FAKE=1`) so it renders real itineraries and the blocked-egress
-> banner without depending on the `openshell` CLI being present in the UI image.
-> The security boundary is proven end-to-end by the [Phase 3 demo](3-demo/README.md),
-> which drives the real `openshell sandbox exec ... opencode run` path directly.
-> Set `TRAVEL_UI_FAKE=0` in `2-deploy/travel-ui.yaml` to wire the UI to the live
-> sandbox.
+> **Note:** The UI runs in live mode (`TRAVEL_UI_FAKE=0`): it drives the real
+> sandboxed agent via `openshell sandbox exec ... opencode run`, so itineraries
+> come from the mock travel API through the OpenShell + Kata boundary, and the
+> blocked-egress banner reflects a real `policy_denied` from the egress proxy.
+> The UI image bundles the `openshell` CLI for this. The same boundary is also
+> verified headlessly by the [Phase 3 demo](3-demo/README.md). Set
+> `TRAVEL_UI_FAKE=1` in `2-deploy/travel-ui.yaml` for a self-contained UI that
+> renders canned results without contacting the sandbox.
 
 ## Architecture
 

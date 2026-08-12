@@ -33,17 +33,21 @@ spec:
           env:
             - name: SANDBOX_NAME
               value: opencode-dual
-            - name: OPENSHELL_GATEWAY_URL
-              value: http://openshell:8080
-            # The shipped UI defaults to fake mode: it renders real itineraries
-            # and the blocked-egress banner without depending on the openshell
-            # CLI being installed in this image or the gateway being reachable
-            # from the pod. The security boundary itself is proven end-to-end by
-            # the Phase 3 demo (3-demo/run-demo.sh), which drives the real
-            # `openshell sandbox exec ... opencode run` path directly.
-            # Set TRAVEL_UI_FAKE=0 to use the live sandbox exec path instead.
+            # The openshell CLI (baked into this image) connects directly to the
+            # gateway using this endpoint; the gateway then execs into the Kata
+            # sandbox. The gateway runs plaintext (disableTls) and allows
+            # unauthenticated users, so no client certs are required.
+            - name: OPENSHELL_GATEWAY_ENDPOINT
+              value: http://openshell-kata:8080
+            # Live mode: the UI drives the real sandboxed agent via
+            # `openshell sandbox exec ... opencode run`. A prompt-injection
+            # exfiltration attempt is blocked by the OpenShell egress policy and
+            # surfaced in the UI. Set to "1" for the self-contained fake demo.
             - name: TRAVEL_UI_FAKE
-              value: "1"
+              value: "0"
+            # gemma-31b agent turns can take a few minutes; give exec headroom.
+            - name: OPENSHELL_EXEC_TIMEOUT
+              value: "300"
           readinessProbe:
             httpGet:
               path: /

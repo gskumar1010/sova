@@ -11,6 +11,23 @@ from dataclasses import dataclass
 
 BLOCKED_RE = re.compile(r"policy_denied|blocked|connection refused|denied", re.IGNORECASE)
 
+
+def _clean(text: str) -> str:
+    """Tidy OpenCode/gemma output for display.
+
+    Strips OpenCode's "> build · model" header and gemma's harmony "channel"
+    delimiters (e.g. <|channel>thought<channel|>). When the harmony final
+    channel marker is present, keep only the text after the last one - that is
+    the model's final answer (the itinerary), not its intermediate tool trace.
+    """
+    t = text
+    t = re.sub(r"(?m)^\s*>\s*build\b.*$", "", t)
+    if "<channel|>" in t:
+        t = t.rsplit("<channel|>", 1)[-1]
+    # Remove any residual harmony tokens like <|channel>thought, <|start|>, etc.
+    t = re.sub(r"<\|?[^>\n]*\|?>", "", t)
+    return t.strip()
+
 _FAKE_ITINERARY = (
     "Proposed itinerary:\n"
     "- Flight OA101 (OpenAir) SFO -> BOS, 08:00-16:30, $279\n"
@@ -51,5 +68,5 @@ def run_agent(prompt: str) -> AgentResult:
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 30)
     raw = (proc.stdout or "") + (proc.stderr or "")
     blocked = bool(BLOCKED_RE.search(raw))
-    text = proc.stdout.strip() if proc.stdout.strip() else raw.strip()
+    text = _clean(proc.stdout) if proc.stdout.strip() else _clean(raw)
     return AgentResult(text=text, egress_blocked=blocked, raw=raw)

@@ -4,6 +4,28 @@
 #   helm install openshell oci://ghcr.io/nvidia/openshell/helm-chart \
 #     -n ${NAMESPACE} -f 2-deploy/openshell-helm-values.yaml
 
+# Unique release name so the cluster-scoped ClusterRole/ClusterRoleBinding
+# (named "<fullname>-node-reader") do not collide with other OpenShell
+# releases already on this cluster (e.g. openshell-poc). This mirrors the
+# existing praxis-verified install, which uses "praxis-openshell-node-reader".
+# Namespaced resources would not collide, but the cluster-scoped ones would.
+fullnameOverride: "openshell-kata"
+
+# Keep service-account names stable so the openshell-kata SCC bindings
+# (system:serviceaccount:<ns>:openshell / :openshell-sandbox) stay valid.
+serviceAccount:
+  create: true
+  name: "openshell"
+sandboxServiceAccount:
+  create: true
+  name: "openshell-sandbox"
+
+# The ghcr.io/nvidia/openshell/* package is now auth-gated; the gateway image
+# (and the supervisor init-container) are pulled by the cluster. The ghcr-pull
+# secret is created by setup.sh from a GitHub token with read access.
+imagePullSecrets:
+  - name: ghcr-pull
+
 server:
   disableTls: true
   logLevel: info
@@ -20,7 +42,18 @@ server:
   sandboxImage: "REGISTRY_PLACEHOLDER/openshell-kata-agent-sandbox:latest"
   sandboxImagePullPolicy: "Always"
 
+  # Sandbox pods pull the supervisor init-container from ghcr; give them the
+  # same pull secret (must exist in the sandbox namespace = release namespace).
+  sandboxImagePullSecrets:
+    - name: ghcr-pull
+
   sandboxNamespace: ""
+
+  # setup.sh generates the JWT signing keys and stores them in a secret named
+  # "openshell-jwt-keys". Pin the name here so it does not depend on the
+  # (overridden) chart fullname, which would otherwise be openshell-kata-jwt-keys.
+  sandboxJwt:
+    signingSecretName: "openshell-jwt-keys"
 
 supervisor:
   sideloadMethod: init-container

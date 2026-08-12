@@ -1,19 +1,26 @@
 # images/travel-ui/Dockerfile
-FROM python:3.11-slim
+#
+# Travel UI (Streamlit). When TRAVEL_UI_FAKE=0 the UI drives the real sandboxed
+# agent by shelling out to `openshell sandbox exec ... opencode run`, so the
+# openshell CLI must be present in this image.
+FROM registry.access.redhat.com/ubi10/ubi:latest
 
-# openshell CLI is required at runtime to reach the sandbox through the gateway.
-# Install it from the published release; pin via OPENSHELL_VERSION build arg.
-ARG OPENSHELL_VERSION=latest
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-# NOTE: replace the following line with the project's official openshell install
-# method if a package/binary URL is available. Placeholder install is validated
-# in Task 6's deploy step, not here.
-RUN curl -fsSL https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | sh || true
+# UBI 10 provides glibc 2.39 (required by the openshell manylinux_2_39 wheel
+# published on PyPI) and Python 3.12. Install Python + pip.
+RUN dnf -y install python3 python3-pip \
+    && dnf clean all
 
 WORKDIR /ui
+
+# openshell CLI (provides the `openshell` binary + Python client library).
+# Installed from PyPI; the x86_64 wheel is manylinux_2_39, hence the UBI 10 base
+# (glibc >= 2.39). Pin the version to match the deployed gateway.
+ARG OPENSHELL_VERSION=0.0.103
+RUN pip3 install --no-cache-dir "openshell==${OPENSHELL_VERSION}" \
+    && openshell --version
+
 COPY app/travel_ui/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY app/__init__.py /ui/app/__init__.py
 COPY app/travel_ui /ui/app/travel_ui

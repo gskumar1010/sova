@@ -53,13 +53,17 @@ info "Model endpoint: ${MODEL_ENDPOINT}"
 
 # --- Build and push app images ---
 
-info "Building and pushing app images..."
-podman build -f images/mock-travel-api/Dockerfile \
-    -t "${REGISTRY}/openshell-kata-mock-travel-api:latest" .
-podman push "${REGISTRY}/openshell-kata-mock-travel-api:latest"
-podman build -f images/travel-ui/Dockerfile \
-    -t "${REGISTRY}/openshell-kata-travel-ui:latest" .
-podman push "${REGISTRY}/openshell-kata-travel-ui:latest"
+if [ "${SKIP_BUILD:-0}" = "1" ]; then
+    info "SKIP_BUILD=1 - skipping image build/push (assuming images already pushed)"
+else
+    info "Building and pushing app images..."
+    podman build --platform=linux/amd64 -f images/mock-travel-api/Dockerfile \
+        -t "${REGISTRY}/openshell-kata-mock-travel-api:latest" .
+    podman push "${REGISTRY}/openshell-kata-mock-travel-api:latest"
+    podman build --platform=linux/amd64 -f images/travel-ui/Dockerfile \
+        -t "${REGISTRY}/openshell-kata-travel-ui:latest" .
+    podman push "${REGISTRY}/openshell-kata-travel-ui:latest"
+fi
 
 # --- 1. Namespace and SCC ---
 
@@ -105,7 +109,7 @@ fi
 
 # --- 5. OpenShell gateway ---
 
-info "Installing OpenShell gateway via Helm..."
+info "Installing OpenShell gateway via Helm (latest chart)..."
 if helm status openshell -n "${NAMESPACE}" >/dev/null 2>&1; then
     info "OpenShell already installed, upgrading..."
     helm upgrade openshell oci://ghcr.io/nvidia/openshell/helm-chart \
@@ -117,6 +121,16 @@ else
         -n "${NAMESPACE}" \
         -f "${SCRIPT_DIR}/openshell-helm-values.yaml" \
         --set server.sandboxImage="${REGISTRY}/openshell-kata-agent-sandbox:latest"
+fi
+
+# The ghcr-pull secret (referenced by openshell-helm-values.yaml for both the
+# gateway pod and sandbox pods) must exist in the namespace before the gateway
+# starts pulling. setup expects it to be created out of band, e.g.:
+#   oc -n "${NAMESPACE}" create secret docker-registry ghcr-pull \
+#     --docker-server=ghcr.io --docker-username=<user> \
+#     --docker-password="$(gh auth token)"
+if ! oc get secret ghcr-pull -n "${NAMESPACE}" >/dev/null 2>&1; then
+    warn "Secret 'ghcr-pull' not found in ${NAMESPACE}; the gateway image pull from ghcr.io may fail."
 fi
 
 # --- 6. JWT signing keys ---
@@ -139,15 +153,15 @@ fi
 # --- 7. Wait for gateway ---
 
 info "Waiting for OpenShell gateway to be ready..."
-oc -n "${NAMESPACE}" rollout status statefulset/openshell --timeout=120s \
+oc -n "${NAMESPACE}" rollout status statefulset/openshell-kata --timeout=120s \
     || warn "Gateway not ready yet"
 
 # --- 8. Port-forward to gateway ---
 
 info "Starting port-forward to OpenShell gateway..."
-pkill -f "port-forward.*svc/openshell.*18080" 2>/dev/null || true
+pkill -f "port-forward.*svc/openshell-kata.*18080" 2>/dev/null || true
 sleep 1
-oc port-forward -n "${NAMESPACE}" svc/openshell 18080:8080 > /tmp/openshell-pf.log 2>&1 &
+oc port-forward -n "${NAMESPACE}" svc/openshell-kata 18080:8080 > /tmp/openshell-pf.log 2>&1 &
 PF_PID=$!
 sleep 4
 
@@ -174,10 +188,36 @@ sed -e "s|MODEL_ENDPOINT_HOST|${MODEL_HOST}|g" \
     -e "s|MODEL_ENDPOINT_PORT|${MODEL_PORT}|g" \
     "${SCRIPT_DIR}/openshell-policy.yaml" > "${POLICY_FILE}"
 
+# OpenCode configuration injected into the sandbox. It is passed inline via
+# OPENCODE_CONFIG_CONTENT so it does not depend on the baked image config.
+# IMPORTANT: use a custom provider with npm "@ai-sdk/openai-compatible" (bundled
+# in OpenCode, no network fetch). The built-in "openai" provider uses the OpenAI
+# *Responses* API (.responses()), which breaks tool-calling for vLLM-served
+# models like gemma (the model emits the tool call as plain text and never runs
+# the tool). "@ai-sdk/openai-compatible" uses the chat/completions API, which
+# matches vLLM's --tool-call-parser and makes real tool calls work.
+# autoupdate/share/plugin are disabled so OpenCode does not phone home to
+# opencode.ai / registry.npmjs.org (those are correctly blocked by the egress
+# policy anyway; disabling them just avoids the noise and startup latency).
+OPENCODE_CFG='{"$schema":"https://opencode.ai/config.json","model":"gemma/gemma4-31b","autoupdate":false,"share":"disabled","plugin":[],"provider":{"gemma":{"npm":"@ai-sdk/openai-compatible","name":"gemma (vLLM)","options":{"baseURL":"{env:OPENAI_BASE_URL}","apiKey":"{env:OPENAI_API_KEY}"},"models":{"gemma4-31b":{}}}}}'
+
+# --env sets non-secret env vars in the sandbox. The model endpoint has no auth,
+# so OPENAI_API_KEY is a dummy. The OPENCODE_DISABLE_* flags keep OpenCode fully
+# offline (no models.dev / npm / opencode.ai fetches), which is required behind
+# the deny-all egress policy.
 openshell sandbox create \
     --name opencode-dual \
     --policy "${POLICY_FILE}" \
     --driver-config-json '{"kubernetes":{"pod":{"runtime_class_name":"kata"}}}' \
+    --env OPENAI_BASE_URL="${MODEL_ENDPOINT}/v1" \
+    --env OPENAI_API_KEY="${OPENAI_API_KEY}" \
+    --env OPENCODE_DISABLE_MODELS_FETCH=1 \
+    --env OPENCODE_DISABLE_AUTOUPDATE=1 \
+    --env OPENCODE_PURE=1 \
+    --env OPENCODE_DISABLE_LSP_DOWNLOAD=1 \
+    --env OPENCODE_DISABLE_AUTOCOMPACT=1 \
+    --env OPENCODE_DB=:memory: \
+    --env OPENCODE_CONFIG_CONTENT="${OPENCODE_CFG}" \
     --no-tty \
     -- sleep infinity &
 _SANDBOX_PID=$!
@@ -190,8 +230,29 @@ rm -f "${POLICY_FILE}"
 # --- 10. Wait for pod ---
 
 info "Waiting for agent pod to be ready..."
-oc wait --for=condition=Ready "pod/opencode-dual" \
-    -n "${NAMESPACE}" --timeout=180s || warn "Pod not ready"
+# OpenShell prefixes the sandbox pod name (e.g. default--opencode-dual).
+SANDBOX_POD=""
+for _ in $(seq 1 30); do
+    SANDBOX_POD=$(oc get pods -n "${NAMESPACE}" -o name 2>/dev/null \
+        | sed 's|^pod/||' | grep -E -- '(^|--)opencode-dual$' | head -1)
+    [ -n "${SANDBOX_POD}" ] && break
+    sleep 2
+done
+if [ -n "${SANDBOX_POD}" ]; then
+    oc wait --for=condition=Ready "pod/${SANDBOX_POD}" \
+        -n "${NAMESPACE}" --timeout=180s || warn "Pod not ready"
+else
+    warn "Sandbox pod not found"
+fi
+
+# --- 10b. Stage the travel tool + agent persona into the sandbox workspace ---
+# The image bakes these into /home/user/workspace, but the sandbox agent runs
+# with its cwd in the PVC-backed workspace (/sandbox). Copy them so OpenCode
+# finds travel_search.py and loads the AGENTS.md persona.
+info "Staging travel tool and persona into the sandbox workspace..."
+openshell sandbox exec -n opencode-dual --no-tty --timeout 60 -- \
+    sh -c 'cp -f /home/user/workspace/travel_search.py /home/user/workspace/AGENTS.md /sandbox/ 2>/dev/null && echo staged' \
+    2>/dev/null || warn "Could not stage workspace files (do it manually before running the demo)"
 
 # --- Done ---
 

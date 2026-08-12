@@ -36,9 +36,9 @@ cleanup() {
 trap cleanup EXIT
 
 # Start port-forward if not already running
-if ! pgrep -f "port-forward.*svc/openshell.*18080" >/dev/null 2>&1; then
+if ! pgrep -f "port-forward.*svc/openshell-kata.*18080" >/dev/null 2>&1; then
     info "Starting port-forward to OpenShell gateway..."
-    oc port-forward -n "${NAMESPACE}" svc/openshell 18080:8080 > /tmp/demo-pf.log 2>&1 &
+    oc port-forward -n "${NAMESPACE}" svc/openshell-kata 18080:8080 > /tmp/demo-pf.log 2>&1 &
     PF_PID=$!
     sleep 3
     if ! kill -0 "${PF_PID}" 2>/dev/null; then
@@ -70,7 +70,8 @@ else
 fi
 
 # Check RuntimeClass
-RUNTIME_CLASS=$(oc get pod opencode-dual -n "${NAMESPACE}" \
+SANDBOX_POD=$(sandbox_pod_name)
+RUNTIME_CLASS=$(oc get pod "${SANDBOX_POD}" -n "${NAMESPACE}" \
     -o jsonpath='{.spec.runtimeClassName}' 2>/dev/null || echo "")
 if [ "${RUNTIME_CLASS}" = "kata" ]; then
     pass "Pod RuntimeClass: kata"
