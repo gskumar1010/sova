@@ -58,11 +58,11 @@ if [ "${SKIP_BUILD:-0}" = "1" ]; then
 else
     info "Building and pushing app images..."
     podman build --platform=linux/amd64 -f images/mock-travel-api/Dockerfile \
-        -t "${REGISTRY}/openshell-kata-mock-travel-api:latest" .
-    podman push "${REGISTRY}/openshell-kata-mock-travel-api:latest"
+        -t "${REGISTRY}/${NAMESPACE}/openshell-kata-mock-travel-api:latest" .
+    podman push "${REGISTRY}/${NAMESPACE}/openshell-kata-mock-travel-api:latest"
     podman build --platform=linux/amd64 -f images/travel-ui/Dockerfile \
-        -t "${REGISTRY}/openshell-kata-travel-ui:latest" .
-    podman push "${REGISTRY}/openshell-kata-travel-ui:latest"
+        -t "${REGISTRY}/${NAMESPACE}/openshell-kata-travel-ui:latest" .
+    podman push "${REGISTRY}/${NAMESPACE}/openshell-kata-travel-ui:latest"
 fi
 
 # --- 1. Namespace and SCC ---
@@ -115,12 +115,12 @@ if helm status openshell -n "${NAMESPACE}" >/dev/null 2>&1; then
     helm upgrade openshell oci://ghcr.io/nvidia/openshell/helm-chart \
         -n "${NAMESPACE}" \
         -f "${SCRIPT_DIR}/openshell-helm-values.yaml" \
-        --set server.sandboxImage="${REGISTRY}/openshell-kata-agent-sandbox:latest"
+        --set server.sandboxImage="image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/openshell-kata-agent-sandbox:latest"
 else
     helm install openshell oci://ghcr.io/nvidia/openshell/helm-chart \
         -n "${NAMESPACE}" \
         -f "${SCRIPT_DIR}/openshell-helm-values.yaml" \
-        --set server.sandboxImage="${REGISTRY}/openshell-kata-agent-sandbox:latest"
+        --set server.sandboxImage="image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/openshell-kata-agent-sandbox:latest"
 fi
 
 # The ghcr-pull secret (referenced by openshell-helm-values.yaml for both the
