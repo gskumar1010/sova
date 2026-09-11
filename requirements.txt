@@ -1,0 +1,24 @@
+This folder has the architecture diagram and abstract of what this project is trying to accomplish.
+Based on the above abstract, architecture diagram and below requirements, generate a github repo 
+
+Requirements
+
+Use below as the reference where we leverage OpenShell and Red Hat Sandboxed containers
+https://github.com/rh-ai-quickstart/secure-agents-with-openshell-kata
+
+
+Instead of the travel booking assistant application used in the above repo, have a scanning and vulnerability app
+Build the scanning and vulnerability application based on 
+
+https://github.com/visa/visa-vulnerability-agentic-harness and
+https://github.com/capitalone/vulnhunter
+
+
+
+For building the user interface, have the input as a git url and the output needs to be a dashboard with vulnerabilities
+Probably have the project connect to a vulnerability MCP server
+As part of testing, test against Git repo that has some vulnerabilities inside.
+
+Future Roadmap is to have a Red Hat AI Quickstart out of this project
+Assume that I will be using Gemma model served with Openshift AI
+Refer https://developers.redhat.com/articles/2026/07/16/layered-sandboxing-ai-agents-openshift-and-openshell#shifting_to_a_layered_security_architecture, https://developers.redhat.com/articles/2026/07/23/why-your-ai-agent-needs-two-sandboxes-benchmark-data#the_results_matrix for ensuring the application is secure. Also, you can use https://github.com/aegeiger/openshell-sandbox-poc for testing

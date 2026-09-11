@@ -29,10 +29,23 @@ fi
 # Check 2: Test pod with Kata runtime
 echo "Launching test pod with kata RuntimeClass..."
 TEST_POD="kata-verify-$$"
+# oc run "${TEST_POD}" \
+#    --image=registry.access.redhat.com/ubi9/ubi-minimal:latest \
+#    --restart=Never \
+#    --overrides='{"spec":{"runtimeClassName":"kata"}}' \
+#    --command -- cat /proc/version
+
 oc run "${TEST_POD}" \
     --image=registry.access.redhat.com/ubi9/ubi-minimal:latest \
     --restart=Never \
-    --overrides='{"spec":{"runtimeClassName":"kata"}}' \
+    --overrides='{
+      "spec": {
+        "runtimeClassName": "kata",
+        "nodeSelector": {
+          "kubernetes.io/hostname": "worker-cluster-ddzmc-2"
+        }
+      }
+    }' \
     --command -- cat /proc/version
 
 echo "Waiting for test pod to complete..."
@@ -52,7 +65,7 @@ else
 fi
 
 # Clean up test pod
-oc delete pod "${TEST_POD}" --ignore-not-found --wait=false >/dev/null 2>&1 || true
+#oc delete pod "${TEST_POD}" --ignore-not-found --wait=false >/dev/null 2>&1 || true
 
 echo ""
 echo "=== Verification complete ==="
