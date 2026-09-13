@@ -1,6 +1,6 @@
-# Deploy Secure AI Travel Agents with OpenShell and Kata on OpenShift
+# SOVA - Sovereign Vulnerability Analysis Agent
 
-Deploy AI agents with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
+Deploy AI-powered vulnerability scanning with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
 
 ## Table of Contents
 
@@ -41,32 +41,26 @@ neither technology addresses alone.
 
 ## Business Use Case
 
-This quickstart deploys a **travel booking assistant**: a chat UI where a user
-asks for flights and hotels in natural language, and an AI agent assembles an
-itinerary by calling a travel API. It is a stand-in for any enterprise agent
-that must call external services on a user's behalf - booking, procurement,
-support - where the agent handles untrusted input and executes tool calls.
+This quickstart deploys **SOVA (Sovereign Vulnerability Analysis Agent)**: an enterprise-grade,
+privacy-first vulnerability scanning platform with a chat UI where users submit Git repository URLs
+and receive comprehensive security analysis dashboards with SARIF-formatted vulnerability reports.
 
-The point of the quickstart is that this agent runs inside a **dual-protection
-boundary**: OpenShell restricts its network egress to exactly the travel API and
-the model endpoint, and Kata isolates it in a hardware VM. When a prompt
-injection tries to make the agent exfiltrate data, the egress policy blocks it -
-visibly, in the same UI.
+The agent performs AI-powered security analysis by orchestrating industry-standard scanning tools
+(Semgrep, Bandit, Safety) and provides severity metrics, CWE classifications, and actionable
+remediation guidance.
 
-![Travel agent itinerary](docs/images/ui-itinerary.png)
+SOVA runs inside a **dual-protection boundary**: OpenShell restricts network egress to only the
+vulnerability orchestrator API and model endpoint, while Kata provides hardware VM isolation.
+When analyzing potentially malicious repositories or handling prompt injections, the security
+boundary prevents data exfiltration - demonstrably enforced and visible in the UI.
 
-*A prompt-injection attempt to exfiltrate data is blocked by the OpenShell egress policy:*
+*Example: Vulnerability dashboard showing SARIF findings with severity breakdown*
 
-![Blocked egress](docs/images/ui-blocked-egress.png)
-
-> **Note:** The UI runs in live mode (`TRAVEL_UI_FAKE=0`): it drives the real
-> sandboxed agent via `openshell sandbox exec ... opencode run`, so itineraries
-> come from the mock travel API through the OpenShell + Kata boundary, and the
-> blocked-egress banner reflects a real `policy_denied` from the egress proxy.
-> The UI image bundles the `openshell` CLI for this. The same boundary is also
-> verified headlessly by the [Phase 3 demo](3-demo/README.md). Set
-> `TRAVEL_UI_FAKE=1` in `2-deploy/travel-ui.yaml` for a self-contained UI that
-> renders canned results without contacting the sandbox.
+> **Note:** The UI drives the real sandboxed agent via `openshell sandbox exec ... opencode run`,
+> so vulnerability reports come from the orchestrator API through the OpenShell + Kata boundary.
+> The blocked-egress banner reflects a real `policy_denied` from the egress proxy when malicious
+> repositories attempt data exfiltration. The UI image bundles the `openshell` CLI for this.
+> The same boundary is verified headlessly by the [Phase 3 demo](3-demo/README.md).
 
 ## Architecture
 
@@ -75,30 +69,30 @@ visibly, in the same UI.
 ```mermaid
 graph TB
     user["User (browser)"]
-    travelui["Travel UI (Streamlit)"]
+    vulnui["SOVA Dashboard UI<br/>(Streamlit)"]
 
     subgraph cluster["OpenShift Cluster · Namespace: openshell-kata"]
         gw["OpenShell Gateway<br/><i>StatefulSet</i>"]
-        mockapi["Mock Travel API<br/><i>FastAPI</i>"]
+        vulnapi["Vulnerability Orchestrator<br/><i>FastAPI + Semgrep/Bandit/Safety</i>"]
 
         subgraph kata_vm["Kata VM · hardware-isolated · guest kernel"]
             subgraph sandbox["OpenShell Sandbox"]
-                agent["AI Coding Agent<br/><i>OpenCode</i>"]
+                agent["Security Analyst Agent<br/><i>OpenCode + Gemma</i>"]
                 proxy["Egress Proxy<br/><i>deny-all default</i>"]
                 landlock["Landlock FS Policy"]
             end
         end
     end
 
-    model["Model Endpoint<br/><i>vLLM / OpenShift AI</i>"]
+    model["Model Endpoint<br/><i>Gemma via OpenShift AI</i>"]
     blocked["Blocked"]
 
-    user -.-> travelui
-    travelui --> gw
+    user -.-> vulnui
+    vulnui --> gw
     gw -- "lifecycle + policy" --> sandbox
     agent --> proxy
     proxy -- "allowed" --> model
-    proxy -- "allowed" --> mockapi
+    proxy -- "allowed" --> vulnapi
     proxy -. "denied" .-> blocked
 
     style kata_vm fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -106,8 +100,8 @@ graph TB
     style cluster fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style blocked fill:#ffcdd2,stroke:#c62828,color:#c62828
     style model fill:#f3e5f5,stroke:#7b1fa2
-    style travelui fill:#e0f7fa,stroke:#00838f
-    style mockapi fill:#f3e5f5,stroke:#7b1fa2
+    style vulnui fill:#e0f7fa,stroke:#00838f
+    style vulnapi fill:#f3e5f5,stroke:#7b1fa2
 ```
 
 **Components:**
@@ -115,19 +109,19 @@ graph TB
 - **Kata VM** (green) - Each agent pod runs inside a lightweight VM with
   its own guest kernel, enforced by CPU virtualization (VT-x/AMD-V).
   Kernel exploits stay contained within the VM boundary.
-- **OpenShell Sandbox** (orange) - The agent runs under an egress proxy
-  (deny-all default; only the model endpoint and the travel API are
-  allowed) and Landlock filesystem policy (kernel-enforced path
-  restrictions).
+- **OpenShell Sandbox** (orange) - The security analyst agent runs under an egress proxy
+  (deny-all default; only the model endpoint and the vulnerability orchestrator API are
+  allowed) and Landlock filesystem policy (kernel-enforced path restrictions).
 - **OpenShell Gateway** - StatefulSet managing sandbox lifecycle, policy
   distribution, and JWT authentication.
-- **Travel UI** - A Streamlit chat app, exposed via an OpenShift Route,
-  that sends user prompts to the agent through the gateway. It is a thin
-  presentation client and sits outside the security boundary.
-- **Mock Travel API** - A FastAPI service returning canned flights and
-  hotels. It is the one business endpoint the agent is allowed to call.
-- **External Model Endpoint** - Any OpenAI-compatible service (vLLM,
-  OpenShift AI). Not deployed by this quickstart.
+- **SOVA Dashboard UI** - A Streamlit web application, exposed via an OpenShift Route,
+  that accepts Git repository URLs and displays vulnerability analysis dashboards. It sends
+  scanning prompts to the agent through the gateway and visualizes SARIF results.
+- **Vulnerability Orchestrator API** - A FastAPI service that orchestrates security scanning
+  tools (Semgrep, Bandit, Safety), manages scan lifecycle with SQLite, and generates
+  SARIF 2.1.0 compliant reports. This is the primary business endpoint the agent calls.
+- **External Model Endpoint** - Gemma model served via OpenShift AI (vLLM). The agent uses
+  this for analyzing scan results and generating remediation guidance. Not deployed by this quickstart.
 
 ## Requirements
 
@@ -166,12 +160,22 @@ graph TB
    source env.sh
    ```
 
-2. Build and push the images (the sandbox image; `setup.sh` also builds the
-   mock travel API and travel UI images):
+2. Build and push the images (the sandbox image, vulnerability orchestrator, and UI):
    ```bash
+   # Build agent sandbox with security analyst persona
    podman build -f images/agent-sandbox/Dockerfile \
      -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
    podman push ${REGISTRY}/openshell-kata-agent-sandbox:latest
+
+   # Build vulnerability orchestrator API
+   podman build -f images/vuln-orchestrator/Dockerfile \
+     -t ${REGISTRY}/vuln-orchestrator-api:latest .
+   podman push ${REGISTRY}/vuln-orchestrator-api:latest
+
+   # Build SOVA dashboard UI
+   podman build -f images/vuln-ui/Dockerfile \
+     -t ${REGISTRY}/sova-dashboard-ui:latest .
+   podman push ${REGISTRY}/sova-dashboard-ui:latest
    ```
 
 ### Phase 1: Infrastructure (cluster-admin)
@@ -233,7 +237,7 @@ analysis, design rationale, and CVE case studies.
 
 ## Tags
 
-- **Product:** Red Hat OpenShift, OpenShift Sandboxed Containers
+- **Product:** Red Hat OpenShift, OpenShift Sandboxed Containers, OpenShift AI
 - **Partner:** NVIDIA
-- **Industry:** Travel and Transportation
-- **Use case:** Security
+- **Industry:** Software Development, DevSecOps, Enterprise Security
+- **Use case:** Vulnerability Scanning, Security Analysis, SAST, Dependency Scanning

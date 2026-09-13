@@ -1,8 +1,8 @@
 # Agent sandbox image for OpenShell + Kata reference architecture
 #
 # Based on the OpenShell community base sandbox image.
-# Adds: Python 3, curl, jq, git, requests, OpenCode config, and the
-# travel-agent tool + persona.
+# Adds: Python 3, curl, jq, git, ripgrep, requests, GitPython, OpenCode config,
+# and the vulnerability scanning tool + security analyst persona.
 #
 # Build:
 #   podman build -f images/agent-sandbox/Dockerfile \
@@ -18,12 +18,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         jq \
         git \
-    && pip3 install --no-cache-dir --break-system-packages requests==2.32.3 \
+        ripgrep \
+    && pip3 install --no-cache-dir --break-system-packages \
+        requests==2.32.3 \
+        gitpython==3.1.43 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY images/agent-sandbox/opencode.json /home/user/.config/opencode/config.json
-COPY app/agent_tools/travel_search.py /home/user/workspace/travel_search.py
-COPY images/agent-sandbox/AGENTS.md /home/user/workspace/AGENTS.md
+COPY app/agent_tools/vuln_scan.py /home/user/workspace/vuln_scan.py
+COPY images/agent-sandbox/SECURITY_ANALYST.md /home/user/workspace/SECURITY_ANALYST.md
 
 USER user
 WORKDIR /home/user/workspace

@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mock-travel-api
+  name: vuln-orchestrator-api
   labels:
-    app.kubernetes.io/name: mock-travel-api
+    app.kubernetes.io/name: vuln-orchestrator-api
     app.kubernetes.io/part-of: openshell-kata
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: mock-travel-api
+      app.kubernetes.io/name: vuln-orchestrator-api
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: mock-travel-api
+        app.kubernetes.io/name: vuln-orchestrator-api
         app.kubernetes.io/part-of: openshell-kata
     spec:
       containers:
         - name: api
-          image: REGISTRY_PLACEHOLDER/openshell-kata-mock-travel-api:latest
+          image: REGISTRY_PLACEHOLDER/vuln-orchestrator-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -28,17 +28,28 @@ spec:
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 5
+          # Volume mounts for persistent scan data
+          volumeMounts:
+            - name: scan-data
+              mountPath: /tmp/sova_sarif
+            - name: scan-db
+              mountPath: /tmp
+      volumes:
+        - name: scan-data
+          emptyDir: {}
+        - name: scan-db
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mock-travel-api
+  name: vuln-orchestrator-api
   labels:
-    app.kubernetes.io/name: mock-travel-api
+    app.kubernetes.io/name: vuln-orchestrator-api
     app.kubernetes.io/part-of: openshell-kata
 spec:
   selector:
-    app.kubernetes.io/name: mock-travel-api
+    app.kubernetes.io/name: vuln-orchestrator-api
   ports:
     - name: http
       port: 8080

@@ -6,5 +6,5 @@ namespace: openshell-kata
 resources:
   - namespace.yaml
   - openshell-scc.yaml
-  - mock-travel-api.yaml
-  - travel-ui.yaml
+  - vuln-orchestrator-api.yaml
+  - sova-dashboard-ui.yaml

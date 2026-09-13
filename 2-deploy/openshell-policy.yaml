@@ -32,10 +32,10 @@ network_policies:
       # allowlisted or the agent's model calls are denied by the egress proxy.
       - { path: /usr/lib/node_modules/opencode-ai/bin/.opencode }
       - { path: /usr/bin/node }
-  travel_api:
-    name: travel-api
+  vuln_orchestrator_api:
+    name: vuln-orchestrator-api
     endpoints:
-      - host: mock-travel-api
+      - host: vuln-orchestrator-api
         port: 8080
         protocol: rest
         enforcement: enforce
@@ -43,9 +43,11 @@ network_policies:
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/bin/python3 }
-      # The agent runs `python3 travel_search.py`; in this base image the
+      # The agent runs `python3 vuln_scan.py`; in this base image the
       # default `python3` is the project venv, which (unlike /usr/bin/python3)
       # has the `requests` module installed. Allowlist it so the tool's call
-      # to the travel API is permitted. The policy engine resolves this
-      # symlink to the underlying uv-managed interpreter.
+      # to the vulnerability orchestrator API is permitted. The policy engine
+      # resolves this symlink to the underlying uv-managed interpreter.
       - { path: /sandbox/.venv/bin/python3 }
+      # Git is used for cloning repositories during vulnerability scanning
+      - { path: /usr/bin/git }

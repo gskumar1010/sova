@@ -56,18 +56,18 @@ info "Model endpoint: ${MODEL_ENDPOINT}"
 if [ "${SKIP_BUILD:-0}" = "1" ]; then
     info "SKIP_BUILD=1 - skipping image build/push (assuming images already pushed)"
 else
-    info "Building and pushing app images..."
-    podman build --platform=linux/amd64 -f images/mock-travel-api/Dockerfile \
-        -t "${REGISTRY}/${NAMESPACE}/openshell-kata-mock-travel-api:latest" .
-    podman push "${REGISTRY}/${NAMESPACE}/openshell-kata-mock-travel-api:latest"
-    podman build --platform=linux/amd64 -f images/travel-ui/Dockerfile \
-        -t "${REGISTRY}/${NAMESPACE}/openshell-kata-travel-ui:latest" .
-    podman push "${REGISTRY}/${NAMESPACE}/openshell-kata-travel-ui:latest"
+    info "Building and pushing SOVA app images..."
+    podman build --platform=linux/amd64 -f images/vuln-orchestrator/Dockerfile \
+        -t "${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest" .
+    podman push "${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest"
+    podman build --platform=linux/amd64 -f images/vuln-ui/Dockerfile \
+        -t "${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest" .
+    podman push "${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest"
 fi
 
 # --- 1. Namespace and SCC ---
 
-info "Creating namespace, SCC, mock travel API, and travel UI..."
+info "Creating namespace, SCC, vulnerability orchestrator API, and SOVA dashboard UI..."
 oc kustomize "${SCRIPT_DIR}" \
     | sed "s|REGISTRY_PLACEHOLDER|${REGISTRY}|g" \
     | oc apply -f -
@@ -245,13 +245,13 @@ else
     warn "Sandbox pod not found"
 fi
 
-# --- 10b. Stage the travel tool + agent persona into the sandbox workspace ---
+# --- 10b. Stage the vulnerability scanning tool + security analyst persona ---
 # The image bakes these into /home/user/workspace, but the sandbox agent runs
 # with its cwd in the PVC-backed workspace (/sandbox). Copy them so OpenCode
-# finds travel_search.py and loads the AGENTS.md persona.
-info "Staging travel tool and persona into the sandbox workspace..."
+# finds vuln_scan.py and loads the SECURITY_ANALYST.md persona.
+info "Staging vulnerability scanning tool and security analyst persona..."
 openshell sandbox exec -n opencode-dual --no-tty --timeout 60 -- \
-    sh -c 'cp -f /home/user/workspace/travel_search.py /home/user/workspace/AGENTS.md /sandbox/ 2>/dev/null && echo staged' \
+    sh -c 'cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ 2>/dev/null && echo staged' \
     2>/dev/null || warn "Could not stage workspace files (do it manually before running the demo)"
 
 # --- Done ---
@@ -271,11 +271,11 @@ oc get pod opencode-dual -n "${NAMESPACE}" -o wide 2>/dev/null || true
 echo ""
 info "OpenShell sandbox:"
 openshell sandbox list 2>/dev/null || true
-info "Waiting for travel UI..."
-oc -n "${NAMESPACE}" rollout status deployment/travel-ui --timeout=120s || warn "travel-ui not ready"
-UI_HOST=$(oc get route travel-ui -n "${NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+info "Waiting for SOVA dashboard UI..."
+oc -n "${NAMESPACE}" rollout status deployment/sova-dashboard-ui --timeout=120s || warn "sova-dashboard-ui not ready"
+UI_HOST=$(oc get route sova-dashboard-ui -n "${NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
 if [ -n "${UI_HOST}" ]; then
-    info "Travel UI: https://${UI_HOST}"
+    info "SOVA Dashboard UI: https://${UI_HOST}"
 fi
 
 echo ""

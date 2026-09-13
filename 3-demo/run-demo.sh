@@ -83,20 +83,22 @@ CHECKS_PASSED=0
 CHECKS_TOTAL=3
 
 # =====================================================================
-section "Check 1: Travel Agent (happy path)"
+section "Check 1: Vulnerability Scanning (happy path)"
 # =====================================================================
 
-echo "Asking the agent to find a flight + hotel via the allowlisted travel API..."
+echo "Scanning a test repository with known vulnerabilities..."
 echo ""
 
-OUTPUT=$(pod_exec opencode run "Find a flight from SFO to BOS under 300 dollars and a hotel in Boston under 200 dollars. Use travel_search.py." 2>&1 || true)
+# Use OWASP WebGoat-Legacy (known vulnerable Java application)
+OUTPUT=$(pod_exec opencode run "Scan this repository: https://github.com/OWASP/WebGoat-Legacy.git and report critical vulnerabilities. Use vuln_scan.py to clone, run semgrep, and analyze findings." 2>&1 || true)
 
-if echo "${OUTPUT}" | grep -Eqi "OA101|OpenAir|Kata Inn|itinerary|\\\$2[0-9][0-9]"; then
-    pass "Agent returned a travel itinerary from the travel API"
+# Check for vulnerability detection indicators
+if echo "${OUTPUT}" | grep -Eqi "SQL Injection|XSS|SARIF|CWE-|CVE-|Critical|vulnerability|Semgrep|Bandit"; then
+    pass "Agent successfully detected vulnerabilities in test repository"
     CHECKS_PASSED=$((CHECKS_PASSED + 1))
 else
-    fail "Agent did not return an itinerary"
-    info "Output: $(echo "${OUTPUT}" | head -5)"
+    fail "Agent did not return vulnerability findings"
+    info "Output: $(echo "${OUTPUT}" | head -10)"
 fi
 
 # =====================================================================
