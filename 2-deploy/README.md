@@ -17,18 +17,26 @@ SOVA dashboard UI, and creates a dual-protection security analyst sandbox
   ```bash
   source env.sh
 
+  # Some manual steps are needed as of now, need to revisit this
+  oc create ${NAMESPACE}
+  oc create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io \
+  --docker-username=<github-username> \
+  --docker-password=<github-pat> \
+  -n ${NAMESPACE}
+
   # Agent sandbox with security analyst persona
-  podman build -f images/agent-sandbox/Dockerfile \
-    -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
-  podman push ${REGISTRY}/openshell-kata-agent-sandbox:latest
+  podman build --platform linux/amd64 -f images/agent-sandbox/Dockerfile \
+    -t ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest .
+  podman push ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest
 
   # Vulnerability orchestrator API
-  podman build -f images/vuln-orchestrator/Dockerfile \
+  podman build --platform linux/amd64 -f images/vuln-orchestrator/Dockerfile \
     -t ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest .
   podman push ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest
 
   # SOVA dashboard UI
-  podman build -f images/vuln-ui/Dockerfile \
+  podman build --platform linux/amd64 -f images/vuln-ui/Dockerfile \
     -t ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest .
   podman push ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest
   ```
