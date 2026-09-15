@@ -164,17 +164,17 @@ graph TB
    ```bash
    # Build agent sandbox with security analyst persona
    podman build --platform linux/amd64 -f images/agent-sandbox/Dockerfile \
-     -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
+     -t ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest .
    podman push ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest
 
    # Build vulnerability orchestrator API
    podman build --platform linux/amd64 -f images/vuln-orchestrator/Dockerfile \
-     -t ${REGISTRY}/vuln-orchestrator-api:latest .
+     -t ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest .
    podman push ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest
 
    # Build SOVA dashboard UI
    podman build --platform linux/amd64 -f images/vuln-ui/Dockerfile \
-     -t ${REGISTRY}/sova-dashboard-ui:latest .
+     -t ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest .
    podman push ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest
    ```
 
