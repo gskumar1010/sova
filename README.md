@@ -163,19 +163,19 @@ graph TB
 2. Build and push the images (the sandbox image, vulnerability orchestrator, and UI):
    ```bash
    # Build agent sandbox with security analyst persona
-   podman build -f images/agent-sandbox/Dockerfile \
+   podman build --platform linux/amd64 -f images/agent-sandbox/Dockerfile \
      -t ${REGISTRY}/openshell-kata-agent-sandbox:latest .
-   podman push ${REGISTRY}/openshell-kata-agent-sandbox:latest
+   podman push ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest
 
    # Build vulnerability orchestrator API
-   podman build -f images/vuln-orchestrator/Dockerfile \
+   podman build --platform linux/amd64 -f images/vuln-orchestrator/Dockerfile \
      -t ${REGISTRY}/vuln-orchestrator-api:latest .
-   podman push ${REGISTRY}/vuln-orchestrator-api:latest
+   podman push ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest
 
    # Build SOVA dashboard UI
-   podman build -f images/vuln-ui/Dockerfile \
+   podman build --platform linux/amd64 -f images/vuln-ui/Dockerfile \
      -t ${REGISTRY}/sova-dashboard-ui:latest .
-   podman push ${REGISTRY}/sova-dashboard-ui:latest
+   podman push ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest
    ```
 
 ### Phase 1: Infrastructure (cluster-admin)
