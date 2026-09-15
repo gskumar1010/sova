@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - kata-operator.yaml
   - kata-runtimeclass.yaml
+  - agent-sandbox-operator.yaml
