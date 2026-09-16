@@ -69,7 +69,7 @@ fi
 
 info "Creating namespace, SCC, vulnerability orchestrator API, and SOVA dashboard UI..."
 oc kustomize "${SCRIPT_DIR}" \
-    | sed "s|REGISTRY_PLACEHOLDER|${REGISTRY}|g" \
+    | sed "s|REGISTRY_PLACEHOLDER|image-registry.openshift-image-registry.svc:5000/${NAMESPACE}|g" \
     | oc apply -f -
 
 # --- 2. SCC binding ---

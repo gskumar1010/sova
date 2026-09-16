@@ -51,3 +51,16 @@ network_policies:
       - { path: /sandbox/.venv/bin/python3 }
       # Git is used for cloning repositories during vulnerability scanning
       - { path: /usr/bin/git }
+  github:
+    name: github
+    endpoints:
+      - host: "github.com"
+        port: 443
+      - host: "api.github.com"
+        port: 443
+      - host: "codeload.github.com"
+        port: 443
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/bin/python3 }
+      - { path: /usr/bin/git }
