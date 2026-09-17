@@ -27,9 +27,12 @@ network_policies:
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/bin/python3 }
+      - { path: /sandbox/.venv/bin/python3 }
+      - { path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14 }
       # The OpenCode agent reaches the model endpoint via its own compiled
       # binary (the /usr/bin/opencode node shim spawns this). It must be
       # allowlisted or the agent's model calls are denied by the egress proxy.
+      - { path: /usr/bin/opencode }
       - { path: /usr/lib/node_modules/opencode-ai/bin/.opencode }
       - { path: /usr/bin/node }
   vuln_orchestrator_api:
@@ -43,24 +46,92 @@ network_policies:
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/bin/python3 }
+      - { path: /sandbox/.venv/bin/python3 }
+      - { path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14 }
       # The agent runs `python3 vuln_scan.py`; in this base image the
       # default `python3` is the project venv, which (unlike /usr/bin/python3)
       # has the `requests` module installed. Allowlist it so the tool's call
       # to the vulnerability orchestrator API is permitted. The policy engine
       # resolves this symlink to the underlying uv-managed interpreter.
       - { path: /sandbox/.venv/bin/python3 }
+      - { path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14 }
       # Git is used for cloning repositories during vulnerability scanning
       - { path: /usr/bin/git }
-  github:
-    name: github
+  
+  git_hosting:
+    name: git-hosting-services
     endpoints:
-      - host: "github.com"
+      # GitHub
+      - host: github.com
         port: 443
-      - host: "api.github.com"
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      - host: "*.github.com"
         port: 443
-      - host: "codeload.github.com"
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      # GitLab
+      - host: gitlab.com
         port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      - host: "*.gitlab.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      # Bitbucket
+      - host: bitbucket.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      - host: "*.bitbucket.org"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/bin/python3 }
       - { path: /usr/bin/git }
+      - { path: /sandbox/.venv/bin/python3 }
+      - { path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14 }
+  scanner_dependencies:
+    name: scanner-tool-dependencies
+    endpoints:
+      # PyPI (for python tool package & vulnerability DB updates)
+      - host: pypi.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      - host: "*.pypi.org"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      - host: files.pythonhosted.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      # Semgrep rules and engines
+      - host: semgrep.dev
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+      - host: "*.semgrep.dev"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-write
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/bin/python3 }
+      - { path: /sandbox/.venv/bin/python3 }
+      - { path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14 }
