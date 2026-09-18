@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# setup.sh -- Deploy the OpenShell + Kata secured agent sandbox
+# setup.sh -- Deploy the OpenShell + Kata secured agent sandbox (LEGACY CLI APPROACH)
+#
+# ⚠️  WARNING: This script uses the CLI-based approach where policies are NOT enforced
+#              in Kubernetes mode. For proper policy enforcement, use setup-operator.sh instead.
 #
 # This is Phase 2 (namespace admin). It deploys the OpenShell gateway,
 # creates the dual-protection sandbox pod, and configures secrets.
@@ -15,6 +18,9 @@
 # Usage:
 #   source env.sh
 #   ./2-deploy/setup.sh
+#
+# Recommended alternative:
+#   Use ./2-deploy/setup-operator.sh for proper policy enforcement via Kubernetes Operator
 
 set -euo pipefail
 
@@ -98,13 +104,21 @@ fi
 
 info "Parsing MODEL_ENDPOINT for OpenShell policy..."
 # Parse host and port from MODEL_ENDPOINT for the OpenShell policy
+_scheme=$(echo "${MODEL_ENDPOINT}" | sed -E 's|^([^:]+)://.*|\1|')
 _no_scheme=$(echo "${MODEL_ENDPOINT}" | sed -E 's|^https?://||')
 _hostport=$(echo "${_no_scheme}" | cut -d/ -f1)
 MODEL_HOST=$(echo "${_hostport}" | cut -d: -f1)
 if echo "${_hostport}" | grep -q ':'; then
     MODEL_PORT=$(echo "${_hostport}" | cut -d: -f2)
 else
-    MODEL_PORT="8000"
+    # Use scheme-appropriate default port
+    if [ "${_scheme}" = "https" ]; then
+        MODEL_PORT="443"
+    elif [ "${_scheme}" = "http" ]; then
+        MODEL_PORT="80"
+    else
+        MODEL_PORT="8000"
+    fi
 fi
 
 # --- 5. OpenShell gateway ---

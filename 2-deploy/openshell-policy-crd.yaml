@@ -1,0 +1,148 @@
+# OpenShellPolicy CRD - Declarative security constraints for sandboxes
+# Converted from openshell-policy.yaml to use with the Kubernetes Operator
+apiVersion: openshell.lenshq.io/v1alpha1
+kind: OpenShellPolicy
+metadata:
+  name: vuln-agent-policy
+  namespace: NAMESPACE_PLACEHOLDER
+spec:
+  version: 1
+
+  # Filesystem policy - locked at sandbox creation
+  filesystem:
+    includeWorkdir: true
+    readOnly:
+      - /usr
+      - /lib
+      - /proc
+      - /dev/urandom
+      - /etc
+    readWrite:
+      - /sandbox
+      - /tmp
+      - /home
+      - /opt
+      - /dev/null
+
+  # Landlock configuration
+  landlock:
+    compatibility: best_effort
+
+  # Process policy - locked at sandbox creation
+  process:
+    runAsUser: sandbox
+    runAsGroup: sandbox
+
+  # Network policies - hot-reloadable at runtime
+  # This is a map of policy names to policy rules
+  networkPolicies:
+    model_inference:
+      name: model-inference
+      endpoints:
+        - host: MODEL_HOST_PLACEHOLDER
+          port: MODEL_PORT_PLACEHOLDER
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+      binaries:
+        - path: /usr/bin/curl
+        - path: /usr/bin/python3
+        - path: /sandbox/.venv/bin/python3
+        - path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14
+        - path: /usr/bin/opencode
+        - path: /usr/lib/node_modules/opencode-ai/bin/.opencode
+        - path: /usr/bin/node
+
+    vuln_orchestrator_api:
+      name: vuln-orchestrator-api
+      endpoints:
+        - host: vuln-orchestrator-api
+          port: 8080
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+      binaries:
+        - path: /usr/bin/curl
+        - path: /usr/bin/python3
+        - path: /sandbox/.venv/bin/python3
+        - path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14
+        - path: /usr/bin/git
+
+    git_hosting:
+      name: git-hosting-services
+      endpoints:
+        # GitHub
+        - host: github.com
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: "*.github.com"
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        # GitLab
+        - host: gitlab.com
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: "*.gitlab.com"
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        # Bitbucket
+        - host: bitbucket.org
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: "*.bitbucket.org"
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+      binaries:
+        - path: /usr/bin/curl
+        - path: /usr/bin/python3
+        - path: /usr/bin/git
+        - path: /sandbox/.venv/bin/python3
+        - path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14
+
+    scanner_dependencies:
+      name: scanner-tool-dependencies
+      endpoints:
+        # PyPI
+        - host: pypi.org
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: "*.pypi.org"
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: files.pythonhosted.org
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        # Semgrep
+        - host: semgrep.dev
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: "*.semgrep.dev"
+          port: 443
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+      binaries:
+        - path: /usr/bin/curl
+        - path: /usr/bin/python3
+        - path: /sandbox/.venv/bin/python3
+        - path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14
