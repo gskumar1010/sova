@@ -9,6 +9,9 @@ spec:
   # Provider type - this maps to the OpenCode config provider
   type: openai-compatible
 
+  # Explicitly set credential mode to inject as environment variables
+  credentialMode: Static
+
   # Reference to the secret containing OPENAI_API_KEY and OPENAI_BASE_URL
   credentialsSecretRef:
     name: opencode-api-keys

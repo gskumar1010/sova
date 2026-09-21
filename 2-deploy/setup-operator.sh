@@ -128,7 +128,31 @@ else
 fi
 info "Model host: ${MODEL_HOST}, port: ${MODEL_PORT}"
 
-# --- 5. OpenShell gateway ---
+# --- 5. Generate JWT signing keys ---
+
+info "Generating JWT signing keys..."
+if ! oc get secret openshell-jwt-keys -n "${NAMESPACE}" >/dev/null 2>&1; then
+    JWT_DIR=$(mktemp -d)
+    mkdir -p "${JWT_DIR}/jwt"
+
+    # Generate Ed25519 key pair (required by OpenShell gateway)
+    openssl genpkey -algorithm Ed25519 -out "${JWT_DIR}/jwt/signing.pem" 2>/dev/null
+    openssl pkey -in "${JWT_DIR}/jwt/signing.pem" -pubout -out "${JWT_DIR}/jwt/public.pem" 2>/dev/null
+
+    # Generate a random key ID
+    echo "$(date +%s)-$(openssl rand -hex 4)" > "${JWT_DIR}/jwt/kid"
+
+    oc create secret generic openshell-jwt-keys -n "${NAMESPACE}" \
+        --from-file=signing.pem="${JWT_DIR}/jwt/signing.pem" \
+        --from-file=public.pem="${JWT_DIR}/jwt/public.pem" \
+        --from-file=kid="${JWT_DIR}/jwt/kid"
+    rm -rf "${JWT_DIR}"
+    info "JWT keys secret created."
+else
+    info "JWT keys secret already exists, skipping."
+fi
+
+# --- 6. OpenShell gateway ---
 
 info "Installing OpenShell gateway via Helm (latest chart)..."
 if helm status openshell -n "${NAMESPACE}" >/dev/null 2>&1; then
@@ -149,20 +173,20 @@ if ! oc get secret ghcr-pull -n "${NAMESPACE}" >/dev/null 2>&1; then
     warn "Secret 'ghcr-pull' not found in ${NAMESPACE}; the gateway image pull from ghcr.io may fail."
 fi
 
-# --- 6. Wait for gateway ---
+# --- 7. Wait for gateway ---
 
 info "Waiting for OpenShell gateway to be ready..."
 oc -n "${NAMESPACE}" rollout status statefulset/openshell-kata --timeout=120s \
     || warn "Gateway not ready yet"
 
-# --- 7. Prepare OpenCode configuration ---
+# --- 8. Prepare OpenCode configuration ---
 
 info "Preparing OpenCode configuration..."
 # OpenCode configuration injected into the sandbox. It is passed inline via
 # OPENCODE_CONFIG_CONTENT so it does not depend on the baked image config.
 OPENCODE_CFG='{"$schema":"https://opencode.ai/config.json","model":"qwen/qwen3-14b","autoupdate":false,"share":"disabled","plugin":[],"provider":{"qwen":{"npm":"@ai-sdk/openai-compatible","name":"Qwen (vLLM)","options":{"baseURL":"{env:OPENAI_BASE_URL}","apiKey":"{env:OPENAI_API_KEY}"},"models":{"qwen3-14b":{}}}}}'
 
-# --- 8. Apply OpenShell CRDs ---
+# --- 9. Apply OpenShell CRDs ---
 
 info "Applying OpenShell CRDs (Provider, Policy, Sandbox)..."
 
@@ -192,7 +216,7 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 
-# --- 9. Wait for sandbox pod ---
+# --- 10. Wait for sandbox pod ---
 
 info "Waiting for sandbox pod to be created..."
 # The operator creates a pod based on the OpenShellSandbox CRD
@@ -219,7 +243,7 @@ else
     oc get openshellsandbox -n "${NAMESPACE}" opencode-dual -o yaml 2>/dev/null || true
 fi
 
-# --- 10. Stage the vulnerability scanning tool + security analyst persona ---
+# --- 11. Stage the vulnerability scanning tool + security analyst persona ---
 # The image bakes these into /home/user/workspace, but the sandbox agent runs
 # with its cwd in the PVC-backed workspace (/sandbox). Copy them so OpenCode
 # finds vuln_scan.py and loads the SECURITY_ANALYST.md persona.

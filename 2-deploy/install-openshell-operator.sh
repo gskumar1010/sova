@@ -41,16 +41,22 @@ if [ ! -d "deploy/charts/openshell-operator" ]; then
     fatal "Helm chart not found in repository. The operator structure may have changed."
 fi
 
-# --- 3. Get gateway endpoint ---
+# --- 3. Check for existing gateway ---
 
-info "Detecting existing OpenShell gateway..."
-GATEWAY_SVC=$(oc get svc -n "${NAMESPACE}" -o name | grep openshell | head -1 | sed 's|service/||')
-if [ -z "${GATEWAY_SVC}" ]; then
-    fatal "OpenShell gateway service not found in namespace ${NAMESPACE}"
+info "Checking for existing OpenShell gateway..."
+GATEWAY_SVC=$(oc get svc -n "${NAMESPACE}" -o name 2>/dev/null | grep openshell | head -1 | sed 's|service/||' || true)
+
+if [ -n "${GATEWAY_SVC}" ]; then
+    # Use existing gateway
+    GATEWAY_ENDPOINT="http://${GATEWAY_SVC}.${NAMESPACE}.svc.cluster.local:8080"
+    USE_BUNDLED="false"
+    info "Found existing gateway: ${GATEWAY_ENDPOINT}"
+else
+    # Let operator deploy its own gateway
+    USE_BUNDLED="true"
+    GATEWAY_ENDPOINT=""
+    info "No existing gateway found - operator will deploy one"
 fi
-
-GATEWAY_ENDPOINT="http://${GATEWAY_SVC}.${NAMESPACE}.svc.cluster.local:8080"
-info "Gateway endpoint: ${GATEWAY_ENDPOINT}"
 
 # --- 4. Build chart dependencies ---
 
@@ -64,40 +70,50 @@ helm dependency build
 
 cd "${TEMP_DIR}/openshell-operator"
 
-# --- 5. Create SCC for operator ---
+# --- 5. Create namespace and SCCs ---
 
-info "Creating SCC for operator namespace..."
-oc apply -f "${SCRIPT_DIR}/openshell-operator-scc.yaml" 2>/dev/null || warn "SCC may already exist"
-
-# Create namespace first to get the service account
+# Create namespace first
 oc create namespace "${OPERATOR_NS}" 2>/dev/null || true
 
-# Grant SCC to default service account (will be created by Helm)
-oc adm policy add-scc-to-user openshell-operator-scc \
-    "system:serviceaccount:${OPERATOR_NS}:default" 2>/dev/null || warn "SCC binding may already exist"
+info "Granting privileged SCC to operator service accounts..."
+# The operator requires privileged SCC due to seccomp annotations and specific UIDs
+# Grant to all service accounts that will be created by the operator Helm chart
+for sa in default openshell-operator openshell-issuer openshell-gateway openshell-operator-issuer-mint openshell-gateway-certgen; do
+    oc adm policy add-scc-to-user privileged \
+        "system:serviceaccount:${OPERATOR_NS}:${sa}" 2>/dev/null || warn "SCC binding for ${sa} may already exist"
+done
 
 # --- 6. Install operator with external gateway ---
 
-info "Installing operator to use existing gateway..."
-
-# Use upgrade --install to handle both new installs and upgrades
-# Disable auth mode since we're using external gateway
-helm upgrade --install openshell-operator deploy/charts/openshell-operator \
-    --namespace "${OPERATOR_NS}" \
-    --create-namespace \
-    --set gateway.bundled=false \
-    --set gateway.endpoint="${GATEWAY_ENDPOINT}" \
-    --set gateway.namespace="${NAMESPACE}" \
-    --set auth.mode=none \
-    --timeout 10m \
-    --wait
+if [ "${USE_BUNDLED}" = "true" ]; then
+    info "Installing operator with bundled gateway..."
+    helm upgrade --install openshell-operator deploy/charts/openshell-operator \
+        --namespace "${OPERATOR_NS}" \
+        --create-namespace \
+        --set gateway.bundled=true \
+        --set auth.mode=bundledOidc \
+        --timeout 10m \
+        --wait
+else
+    info "Installing operator to use existing gateway..."
+    helm upgrade --install openshell-operator deploy/charts/openshell-operator \
+        --namespace "${OPERATOR_NS}" \
+        --create-namespace \
+        --set gateway.bundled=false \
+        --set gateway.endpoint="${GATEWAY_ENDPOINT}" \
+        --set gateway.namespace="${NAMESPACE}" \
+        --set auth.mode=none \
+        --timeout 10m \
+        --wait
+fi
 
 # --- 7. Verify installation ---
 
 info "Verifying CRDs..."
 sleep 5
 
-CRD_COUNT=$(oc get crd | grep -c "openshell.nvidia.com" || true)
+# Check for CRDs with either domain (nvidia.com or lenshq.io)
+CRD_COUNT=$(oc get crd | grep -c "openshell\." || true)
 if [ "${CRD_COUNT}" -eq 0 ]; then
     warn "OpenShell CRDs not found. Checking installation..."
     oc get pods -n "${OPERATOR_NS}"
@@ -105,7 +121,7 @@ if [ "${CRD_COUNT}" -eq 0 ]; then
 fi
 
 info "Found ${CRD_COUNT} OpenShell CRDs:"
-oc get crd | grep "openshell.nvidia.com"
+oc get crd | grep "openshell\."
 
 # --- 8. Wait for operator pod ---
 
@@ -123,12 +139,20 @@ info " OpenShell Operator Installation Complete"
 info "========================================="
 echo ""
 info "Operator namespace: ${OPERATOR_NS}"
-info "Gateway endpoint:   ${GATEWAY_ENDPOINT}"
+if [ "${USE_BUNDLED}" = "true" ]; then
+    info "Gateway mode:       Bundled (deployed by operator)"
+else
+    info "Gateway endpoint:   ${GATEWAY_ENDPOINT}"
+fi
 echo ""
 info "CRDs installed:"
-oc get crd | grep "openshell.nvidia.com" || true
+oc get crd | grep "openshell\." || true
 echo ""
 info "Operator pods:"
 oc get pods -n "${OPERATOR_NS}"
 echo ""
-info "Next step: Run ./2-deploy/setup-operator.sh to deploy your agent"
+if [ "${USE_BUNDLED}" = "true" ]; then
+    info "Next step: Run ./2-deploy/setup-operator.sh to deploy your application and agent sandbox"
+else
+    info "Next step: Run ./2-deploy/setup-operator.sh to deploy your agent"
+fi

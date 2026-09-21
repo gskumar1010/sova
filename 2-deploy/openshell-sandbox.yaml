@@ -20,9 +20,10 @@ spec:
   runtimeClassName: kata
 
   # Environment variables (non-secret) - map of key-value pairs
+  # Note: Including OPENAI_API_KEY directly due to gateway credential binding mode
   environment:
     OPENAI_BASE_URL: "MODEL_ENDPOINT_PLACEHOLDER/v1"
-    OPENAI_API_KEY: "DUMMY_KEY"
+    OPENAI_API_KEY: "API_KEY_PLACEHOLDER"
     OPENCODE_DISABLE_MODELS_FETCH: "1"
     OPENCODE_DISABLE_AUTOUPDATE: "1"
     OPENCODE_PURE: "1"

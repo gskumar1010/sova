@@ -29,7 +29,7 @@ COPY app/agent_tools/vuln_scan.py /home/user/workspace/vuln_scan.py
 COPY images/agent-sandbox/SECURITY_ANALYST.md /home/user/workspace/SECURITY_ANALYST.md
 
 RUN chmod +x /home/user/workspace/vuln_scan.py \
-    && chown -R user:sandbox /home/user/workspace
+    && chmod -R 755 /home/user/workspace
 
 USER user
 WORKDIR /home/user/workspace
