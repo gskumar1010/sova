@@ -30,15 +30,6 @@ SOVA dashboard UI, and creates a dual-protection security analyst sandbox
     -t ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest .
   podman push ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest
 
-  # Vulnerability orchestrator API
-  podman build --platform linux/amd64 -f images/vuln-orchestrator/Dockerfile \
-    -t ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest .
-  podman push ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest
-
-  # SOVA dashboard UI
-  podman build --platform linux/amd64 -f images/vuln-ui/Dockerfile \
-    -t ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest .
-  podman push ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest
   ```
 
   **Note:** The `setup-operator.sh` script will build and push the orchestrator and UI

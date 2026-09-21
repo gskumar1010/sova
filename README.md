@@ -151,33 +151,6 @@ graph TB
 
 ## Deploy
 
-### Prerequisites
-
-1. Copy and configure environment variables:
-   ```bash
-   cp env.sh.example env.sh
-   # Edit env.sh with your values
-   source env.sh
-   ```
-
-2. Build and push the images (the sandbox image, vulnerability orchestrator, and UI):
-   ```bash
-   # Build agent sandbox with security analyst persona
-   podman build --platform linux/amd64 -f images/agent-sandbox/Dockerfile \
-     -t ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest .
-   podman push ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest
-
-   # Build vulnerability orchestrator API
-   podman build --platform linux/amd64 -f images/vuln-orchestrator/Dockerfile \
-     -t ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest .
-   podman push ${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest
-
-   # Build SOVA dashboard UI
-   podman build --platform linux/amd64 -f images/vuln-ui/Dockerfile \
-     -t ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest .
-   podman push ${REGISTRY}/${NAMESPACE}/sova-dashboard-ui:latest
-   ```
-
 ### Phase 1: Infrastructure (cluster-admin)
 
 Install the Kata Containers runtime on your OpenShift cluster. This
