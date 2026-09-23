@@ -212,6 +212,7 @@ OPENCODE_CFG_ESCAPED=$(echo "${OPENCODE_CFG}" | sed 's|/|\\/|g' | sed 's|"|\\"|g
 sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     -e "s|REGISTRY_PLACEHOLDER|image-registry.openshift-image-registry.svc:5000/${NAMESPACE}|g" \
     -e "s|MODEL_ENDPOINT_PLACEHOLDER|${MODEL_ENDPOINT}|g" \
+    -e "s|API_KEY_PLACEHOLDER|${OPENAI_API_KEY}|g" \
     -e "s|OPENCODE_CFG_PLACEHOLDER|${OPENCODE_CFG_ESCAPED}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
