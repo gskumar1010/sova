@@ -207,8 +207,8 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
 
 # Apply OpenShellSandbox
 info "Creating OpenShellSandbox..."
-# Escape the JSON config for use in sed
-OPENCODE_CFG_ESCAPED=$(echo "${OPENCODE_CFG}" | sed 's|/|\\/|g' | sed 's|"|\\"|g')
+# Escape the JSON config for use in sed - need to escape /, ", and $
+OPENCODE_CFG_ESCAPED=$(echo "${OPENCODE_CFG}" | sed 's|/|\\/|g' | sed 's|"|\\"|g' | sed 's|\$|\\$|g')
 sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     -e "s|REGISTRY_PLACEHOLDER|image-registry.openshift-image-registry.svc:5000/${NAMESPACE}|g" \
     -e "s|MODEL_ENDPOINT_PLACEHOLDER|${MODEL_ENDPOINT}|g" \
@@ -251,9 +251,20 @@ fi
 
 if [ -n "${SANDBOX_POD}" ]; then
     info "Staging vulnerability scanning tool and security analyst persona..."
-    oc exec -n "${NAMESPACE}" "${SANDBOX_POD}" -- \
-        sh -c 'cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ 2>/dev/null && echo staged' \
-        2>/dev/null || warn "Could not stage workspace files (do it manually before running the demo)"
+    # Wait a bit for the container to be fully ready
+    sleep 5
+    # Try to copy files with retry
+    for attempt in $(seq 1 3); do
+        if oc exec -n "${NAMESPACE}" "${SANDBOX_POD}" -- \
+            sh -c 'cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ && ls /sandbox/vuln_scan.py /sandbox/SECURITY_ANALYST.md' \
+            >/dev/null 2>&1; then
+            info "Files staged successfully"
+            break
+        else
+            warn "Attempt $attempt failed to stage files, retrying..."
+            sleep 2
+        fi
+    done
 fi
 
 # --- Done ---

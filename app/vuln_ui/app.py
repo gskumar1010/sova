@@ -44,7 +44,19 @@ if st.button("🔍 Scan Repository", type="primary") and git_url:
     if not is_valid:
         st.error(f"Invalid URL: {error_msg}")
     else:
-        prompt = f"Scan this repository: {git_url} and report vulnerabilities. Use vuln_scan.py to clone, run semgrep and bandit, then analyze findings."
+        prompt = f"""Scan this repository: {git_url}
+
+Use vuln_scan.py to clone and scan with semgrep and bandit.
+
+CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
+1. Total vulnerabilities: `jq '.runs[0].results | length' semgrep.sarif`
+2. By severity: `jq '[.runs[0].results[].level] | group_by(.) | map({{(.[0]): length}}) | add' semgrep.sarif`
+3. Top rule IDs only: `jq -r '.runs[0].results[].ruleId' semgrep.sarif | sort | uniq -c | sort -rn | head -5`
+
+Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no snippets, no file paths).
+
+Repository: {git_url}
+"""
         st.session_state.history.append(("user", prompt))
 
         with st.spinner("Agent scanning repository inside the sandbox..."):

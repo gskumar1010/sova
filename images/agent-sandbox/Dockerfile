@@ -27,9 +27,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY images/agent-sandbox/opencode.json /home/user/.config/opencode/config.json
 COPY app/agent_tools/vuln_scan.py /home/user/workspace/vuln_scan.py
 COPY images/agent-sandbox/SECURITY_ANALYST.md /home/user/workspace/SECURITY_ANALYST.md
+COPY images/agent-sandbox/startup.sh /usr/local/bin/startup.sh
 
 RUN chmod +x /home/user/workspace/vuln_scan.py \
-    && chmod -R 755 /home/user/workspace
+    && chmod -R 755 /home/user/workspace \
+    && chmod +x /usr/local/bin/startup.sh
 
 USER user
 WORKDIR /home/user/workspace
+
+# Use startup wrapper to auto-stage files to /sandbox/ on container start
+# The wrapper will exec to the base image's original entrypoint
+ENTRYPOINT ["/usr/local/bin/startup.sh"]
+# Note: CMD is inherited from base image (openshell-sandbox)

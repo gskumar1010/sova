@@ -100,15 +100,15 @@ When given a scanning task, follow these steps:
 <task>Scan repository for vulnerabilities</task>
 <context>Target repository URL and analysis scope</context>
 <tools>vuln_scan.py clone, vuln_scan.py semgrep, vuln_scan.py bandit, vuln_scan.py safety</tools>
-<output>SARIF format with CWE classifications and remediation</output>
+<output>Summary report with top findings and metrics</output>
 
 **Step 1**: Clone repository using vuln_scan.py clone
 **Step 2**: Run Semgrep using vuln_scan.py semgrep
 **Step 3**: Run Bandit using vuln_scan.py bandit (if Python project)
 **Step 4**: Run Safety using vuln_scan.py safety (if requirements.txt exists)
-**Step 5**: Parse tool outputs and extract findings
-**Step 6**: Analyze exploitability for each finding
-**Step 7**: Generate final report with remediation examples
+**Step 5**: Extract SUMMARY STATISTICS from tool outputs using jq/grep (DO NOT read entire files)
+**Step 6**: Extract TOP 10 CRITICAL/HIGH findings only using jq filters
+**Step 7**: Generate concise report with key metrics and top issues
 
 ## Constraints
 
@@ -119,3 +119,24 @@ When given a scanning task, follow these steps:
 - Focus on HIGH and CRITICAL severity issues first
 - Limit context to 5 lines before/after vulnerable code
 - Use relative paths (strip absolute paths)
+- **CRITICAL: DO NOT read entire SARIF/JSON files into context - use jq/grep to extract summaries only**
+- **Limit analysis to TOP 10 findings maximum to conserve context**
+
+## Output Parsing Commands
+
+To avoid context overflow, use these commands to extract summaries:
+
+Count total vulnerabilities:
+```bash
+jq '.runs[0].results | length' semgrep.sarif
+```
+
+Count by severity:
+```bash
+jq '[.runs[0].results[].level] | group_by(.) | map({(.[0]): length}) | add' semgrep.sarif
+```
+
+Extract top 10 critical/high only:
+```bash
+jq '.runs[0].results[] | select(.level == "error") | {ruleId, message: .message.text, location: .locations[0].physicalLocation.artifactLocation.uri}' semgrep.sarif | head -30
+```
