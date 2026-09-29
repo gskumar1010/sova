@@ -258,59 +258,72 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 
-# --- 10. Wait for sandbox pod ---
+# --- 10. Stage files in sandbox using OpenShell API ---
+# Use the OpenShell Python API via the sova-dashboard-ui pod to stage files.
+# This avoids fragile pod-finding logic and works regardless of OpenShell's pod naming.
 
-info "Waiting for sandbox pod to be created..."
-# With standalone gateway, pods are created in the application namespace
-# Pod name format: <namespace>--<sandbox-name>
-SANDBOX_POD=""
-for _ in $(seq 1 30); do
-    SANDBOX_POD=$(oc get pods -n "${NAMESPACE}" -l app=vuln-agent,component=sandbox -o name 2>/dev/null \
-        | sed 's|^pod/||' | head -1)
-    if [ -z "${SANDBOX_POD}" ]; then
-        # Fallback: try OpenShell naming convention
-        SANDBOX_POD=$(oc get pods -n "${NAMESPACE}" -o name 2>/dev/null \
-            | sed 's|^pod/||' | grep -E -- '(^|--)opencode-dual$' | head -1)
-    fi
-    [ -n "${SANDBOX_POD}" ] && break
-    sleep 2
-done
+info "Staging files in sandbox using OpenShell API..."
 
-if [ -n "${SANDBOX_POD}" ]; then
-    info "Found sandbox pod: ${SANDBOX_POD}"
-    oc wait --for=condition=Ready "pod/${SANDBOX_POD}" \
-        -n "${NAMESPACE}" --timeout=180s || warn "Pod not ready"
-else
-    warn "Sandbox pod not found - check OpenShellSandbox status:"
-    oc get openshellsandbox -n "${NAMESPACE}" opencode-dual -o yaml 2>/dev/null || true
-fi
+# Wait for sova-dashboard-ui to be ready (it has the openshell Python package)
+oc wait --for=condition=Available deployment/sova-dashboard-ui \
+    -n "${NAMESPACE}" --timeout=60s >/dev/null 2>&1 || warn "Dashboard UI not ready"
 
-# --- 11. Stage the vulnerability scanning tool + security analyst persona ---
-# The image bakes these into /home/user/workspace, but the sandbox agent runs
-# with its cwd in the PVC-backed workspace (/sandbox). Copy them so OpenCode
-# finds vuln_scan.py and loads the SECURITY_ANALYST.md persona.
+# Create a Python script to stage files via OpenShell API
+cat > /tmp/stage_sandbox_files.py <<'EOF'
+from openshell.sandbox import SandboxClient
+import sys
+import os
 
-if [ -n "${SANDBOX_POD}" ]; then
-    info "Staging vulnerability scanning tool and security analyst persona..."
-    # Wait a bit for the container to be fully ready
-    sleep 5
+def main():
+    gateway = os.environ.get('OPENSHELL_GATEWAY_ENDPOINT', 'http://openshell-kata:8080')
+    host = gateway.replace('http://', '').replace('https://', '').split(':')[0]
+    port_part = gateway.replace('http://', '').replace('https://', '').split(':')
+    port = int(port_part[1]) if len(port_part) > 1 else 8080
 
-    # Stage files and create directories
-    for attempt in $(seq 1 3); do
-        if oc exec -n "${NAMESPACE}" "${SANDBOX_POD}" -- \
-            sh -c 'mkdir -p /sandbox/tmp /sandbox/.config/opencode && cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ && ls /sandbox/vuln_scan.py /sandbox/SECURITY_ANALYST.md' \
-            >/dev/null 2>&1; then
-            info "Files staged successfully"
-            break
-        else
-            warn "Attempt $attempt failed to stage files, retrying..."
-            sleep 2
-        fi
-    done
+    client = SandboxClient(endpoint=f'{host}:{port}', tls=None, bearer_token=None, timeout=30.0)
+    try:
+        # 1. Create directories
+        print("Creating directories...")
+        result = client.exec(
+            sandbox='opencode-dual',
+            command=['mkdir', '-p', '/sandbox/tmp', '/sandbox/.config/opencode', '/sandbox/.agents'],
+            workspace='default',
+            timeout_seconds=10,
+            no_login_shell=True
+        )
+        if result.exit_code != 0:
+            print(f"ERROR creating directories: {result.stderr}", file=sys.stderr)
+            return 1
 
-    # Write OpenCode config to /sandbox/.config/opencode/config.json
-    info "Writing OpenCode configuration..."
-    echo '{
+        # 2. Copy files from image to sandbox
+        print("Copying vuln_scan.py and SECURITY_ANALYST.md...")
+        result = client.exec(
+            sandbox='opencode-dual',
+            command=['cp', '-f', '/home/user/workspace/vuln_scan.py', '/home/user/workspace/SECURITY_ANALYST.md', '/sandbox/'],
+            workspace='default',
+            timeout_seconds=10,
+            no_login_shell=True
+        )
+        if result.exit_code != 0:
+            print(f"ERROR copying files: {result.stderr}", file=sys.stderr)
+            return 1
+
+        # 3. Copy persona to .agents directory
+        print("Copying persona to .agents...")
+        result = client.exec(
+            sandbox='opencode-dual',
+            command=['cp', '-f', '/home/user/workspace/SECURITY_ANALYST.md', '/sandbox/.agents/security-analyst.md'],
+            workspace='default',
+            timeout_seconds=10,
+            no_login_shell=True
+        )
+        if result.exit_code != 0:
+            print(f"ERROR copying persona: {result.stderr}", file=sys.stderr)
+            return 1
+
+        # 4. Write OpenCode config
+        print("Writing OpenCode config...")
+        config = '''{
   "$schema": "https://opencode.ai/config.json",
   "model": "nemotron/nemotron-30b-vulkan",
   "autoupdate": false,
@@ -329,9 +342,49 @@ if [ -n "${SANDBOX_POD}" ]; then
       }
     }
   }
-}' | oc exec -i -n "${NAMESPACE}" "${SANDBOX_POD}" -- sh -c 'cat > /sandbox/.config/opencode/config.json'
-    info "✓ OpenCode config written to /sandbox/.config/opencode/config.json"
+}'''
+        result = client.exec(
+            sandbox='opencode-dual',
+            command=['sh', '-c', f'cat > /sandbox/.config/opencode/config.json << "EOFCONFIG"\n{config}\nEOFCONFIG'],
+            workspace='default',
+            timeout_seconds=10,
+            no_login_shell=True
+        )
+        if result.exit_code != 0:
+            print(f"ERROR writing config: {result.stderr}", file=sys.stderr)
+            return 1
+
+        # 5. Verify
+        print("Verifying staged files...")
+        result = client.exec(
+            sandbox='opencode-dual',
+            command=['ls', '-lh', '/sandbox/vuln_scan.py', '/sandbox/SECURITY_ANALYST.md', '/sandbox/.config/opencode/config.json', '/sandbox/.agents/security-analyst.md'],
+            workspace='default',
+            timeout_seconds=10,
+            no_login_shell=True
+        )
+        if result.exit_code == 0:
+            print("✓ All files staged successfully")
+            return 0
+        else:
+            print(f"ERROR verifying files: {result.stderr}", file=sys.stderr)
+            return 1
+
+    finally:
+        client.close()
+
+if __name__ == '__main__':
+    sys.exit(main())
+EOF
+
+# Execute the staging script via sova-dashboard-ui pod
+if oc exec -n "${NAMESPACE}" deployment/sova-dashboard-ui -- python3 - < /tmp/stage_sandbox_files.py; then
+    info "✓ Files staged successfully in sandbox"
+else
+    warn "Failed to stage files in sandbox - manual staging may be required"
 fi
+
+rm -f /tmp/stage_sandbox_files.py
 
 # --- Done ---
 
@@ -349,7 +402,7 @@ info "CRD Status:"
 oc get openshellpolicy,openshellsandbox -n "${NAMESPACE}" 2>/dev/null || true
 echo ""
 info "Pod status:"
-oc get pod -n "${NAMESPACE}" -l app=vuln-agent 2>/dev/null || oc get pod "${SANDBOX_POD}" -n "${NAMESPACE}" -o wide 2>/dev/null || true
+oc get pod -n "${NAMESPACE}" | grep -E "(NAME|openshell|sova|vuln)" || true
 echo ""
 info "Waiting for SOVA dashboard UI..."
 oc -n "${NAMESPACE}" rollout status deployment/sova-dashboard-ui --timeout=120s || warn "sova-dashboard-ui not ready"
@@ -365,4 +418,5 @@ info "To update the policy at runtime:"
 info "  oc edit openshellpolicy vuln-agent-policy -n ${NAMESPACE}"
 info ""
 info "To view sandbox logs:"
-info "  oc logs -n ${NAMESPACE} ${SANDBOX_POD:-<sandbox-pod>} -f"
+info "  # Find supervisor pod: oc get pods -n ${NAMESPACE} | grep supervisor"
+info "  # View logs: oc logs -n ${NAMESPACE} <supervisor-pod> -f"
