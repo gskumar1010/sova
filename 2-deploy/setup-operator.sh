@@ -171,7 +171,22 @@ else
     warn "ghcr-pull secret not found - supervisor init-container pull may fail"
 fi
 
-# --- 6. Prepare OpenCode configuration ---
+# --- 6. Fix OpenShell NetworkPolicy for sandbox egress ---
+
+info "Fixing OpenShell sandbox NetworkPolicy to allow egress..."
+# The openshell-sandbox-workloads NetworkPolicy has Egress in policyTypes but no egress rules,
+# which blocks ALL outbound traffic from sandbox workloads. OpenShell's own network broker
+# enforces the actual allow-list, so we need to allow all egress at the Kubernetes level.
+if oc get networkpolicy openshell-sandbox-workloads -n "${NAMESPACE}" >/dev/null 2>&1; then
+    oc patch networkpolicy openshell-sandbox-workloads -n "${NAMESPACE}" --type=json \
+        -p='[{"op": "add", "path": "/spec/egress", "value": [{}]}]' 2>/dev/null \
+        || warn "NetworkPolicy patch failed - may already be patched"
+    info "✓ OpenShell sandbox NetworkPolicy patched to allow egress"
+else
+    warn "openshell-sandbox-workloads NetworkPolicy not found - may need manual patching"
+fi
+
+# --- 7. Prepare OpenCode configuration ---
 
 info "Preparing OpenCode configuration..."
 # Create a ConfigMap with the OpenCode configuration to avoid sed escaping issues
@@ -205,7 +220,7 @@ data:
     }
 EOF
 
-# --- 7. Get vuln-orchestrator-api ClusterIP for sandbox DNS workaround ---
+# --- 8. Get vuln-orchestrator-api ClusterIP for sandbox DNS workaround ---
 
 info "Getting vuln-orchestrator-api ClusterIP..."
 VULN_API_IP=$(oc get service vuln-orchestrator-api -n "${NAMESPACE}" -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "vuln-orchestrator-api")
@@ -217,7 +232,7 @@ else
     info "Vuln API URL: ${VULN_API_URL}"
 fi
 
-# --- 8. Apply OpenShell CRDs ---
+# --- 9. Apply OpenShell CRDs ---
 
 info "Applying OpenShell CRDs (Policy, Sandbox)..."
 
@@ -243,7 +258,7 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 
-# --- 8. Wait for sandbox pod ---
+# --- 10. Wait for sandbox pod ---
 
 info "Waiting for sandbox pod to be created..."
 # With standalone gateway, pods are created in the application namespace
@@ -270,7 +285,7 @@ else
     oc get openshellsandbox -n "${NAMESPACE}" opencode-dual -o yaml 2>/dev/null || true
 fi
 
-# --- 9. Stage the vulnerability scanning tool + security analyst persona ---
+# --- 11. Stage the vulnerability scanning tool + security analyst persona ---
 # The image bakes these into /home/user/workspace, but the sandbox agent runs
 # with its cwd in the PVC-backed workspace (/sandbox). Copy them so OpenCode
 # finds vuln_scan.py and loads the SECURITY_ANALYST.md persona.
