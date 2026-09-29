@@ -44,18 +44,19 @@ if st.button("🔍 Scan Repository", type="primary") and git_url:
     if not is_valid:
         st.error(f"Invalid URL: {error_msg}")
     else:
-        prompt = f"""Scan this repository: {git_url}
+        prompt = f"""@security-analyst Scan this repository: {git_url}
 
-Use vuln_scan.py to clone and scan with semgrep and bandit.
+Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
+1. Use python3 vuln_scan.py clone --url {git_url} --dest /sandbox/tmp/scan
+2. Use python3 vuln_scan.py semgrep --path /sandbox/tmp/scan --output /sandbox/tmp/semgrep.sarif
+3. Use python3 vuln_scan.py bandit --path /sandbox/tmp/scan --output /sandbox/tmp/bandit.json
 
 CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
-1. Total vulnerabilities: `jq '.runs[0].results | length' semgrep.sarif`
-2. By severity: `jq '[.runs[0].results[].level] | group_by(.) | map({{(.[0]): length}}) | add' semgrep.sarif`
-3. Top rule IDs only: `jq -r '.runs[0].results[].ruleId' semgrep.sarif | sort | uniq -c | sort -rn | head -5`
+- Total vulnerabilities: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
+- By severity: `jq '[.runs[0].results[].level] | group_by(.) | map({{(.[0]): length}}) | add' /sandbox/tmp/semgrep.sarif`
+- Top rule IDs: `jq -r '.runs[0].results[].ruleId' /sandbox/tmp/semgrep.sarif | sort | uniq -c | sort -rn | head -5`
 
 Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no snippets, no file paths).
-
-Repository: {git_url}
 """
         st.session_state.history.append(("user", prompt))
 
