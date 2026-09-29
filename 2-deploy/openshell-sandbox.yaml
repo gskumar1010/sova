@@ -32,6 +32,7 @@ spec:
     OPENCODE_DISABLE_LSP_DOWNLOAD: "1"
     OPENCODE_DB: ":memory:"
     OPENCODE_CONFIG: "/sandbox/.config/opencode/config.json"
+    VULN_API_URL: "VULN_API_URL_PLACEHOLDER"
 
   # Log level
   logLevel: info

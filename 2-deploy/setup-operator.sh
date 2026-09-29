@@ -205,7 +205,19 @@ data:
     }
 EOF
 
-# --- 7. Apply OpenShell CRDs ---
+# --- 7. Get vuln-orchestrator-api ClusterIP for sandbox DNS workaround ---
+
+info "Getting vuln-orchestrator-api ClusterIP..."
+VULN_API_IP=$(oc get service vuln-orchestrator-api -n "${NAMESPACE}" -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "vuln-orchestrator-api")
+if [ -z "${VULN_API_IP}" ] || [ "${VULN_API_IP}" = "vuln-orchestrator-api" ]; then
+    warn "Could not get ClusterIP for vuln-orchestrator-api, using hostname"
+    VULN_API_URL="http://vuln-orchestrator-api:8080"
+else
+    VULN_API_URL="http://${VULN_API_IP}:8080"
+    info "Vuln API URL: ${VULN_API_URL}"
+fi
+
+# --- 8. Apply OpenShell CRDs ---
 
 info "Applying OpenShell CRDs (Policy, Sandbox)..."
 
@@ -216,6 +228,7 @@ info "Creating OpenShellPolicy..."
 sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     -e "s|MODEL_HOST_PLACEHOLDER|${MODEL_HOST}|g" \
     -e "s|MODEL_PORT_PLACEHOLDER|${MODEL_PORT}|g" \
+    -e "s|VULN_API_IP_PLACEHOLDER|${VULN_API_IP}|g" \
     "${SCRIPT_DIR}/openshell-policy-crd.yaml" \
     | oc apply -f -
 
@@ -226,6 +239,7 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     -e "s|REGISTRY_PLACEHOLDER|image-registry.openshift-image-registry.svc:5000/${NAMESPACE}|g" \
     -e "s|MODEL_ENDPOINT_PLACEHOLDER|${MODEL_ENDPOINT}|g" \
     -e "s|API_KEY_PLACEHOLDER|${OPENAI_API_KEY}|g" \
+    -e "s|VULN_API_URL_PLACEHOLDER|${VULN_API_URL}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 

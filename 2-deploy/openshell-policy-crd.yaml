@@ -56,7 +56,18 @@ spec:
     vuln_orchestrator_api:
       name: vuln-orchestrator-api
       endpoints:
+        # Allow both hostname and ClusterIP since sandbox DNS may not work
         - host: vuln-orchestrator-api
+          port: 8080
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: vuln-orchestrator-api.openshell-kata.svc.cluster.local
+          port: 8080
+          protocol: rest
+          enforcement: enforce
+          access: read-write
+        - host: "VULN_API_IP_PLACEHOLDER"  # ClusterIP injected by setup script
           port: 8080
           protocol: rest
           enforcement: enforce

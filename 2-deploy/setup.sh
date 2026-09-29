@@ -213,7 +213,7 @@ sed -e "s|MODEL_ENDPOINT_HOST|${MODEL_HOST}|g" \
 # autoupdate/share/plugin are disabled so OpenCode does not phone home to
 # opencode.ai / registry.npmjs.org (those are correctly blocked by the egress
 # policy anyway; disabling them just avoids the noise and startup latency).
-OPENCODE_CFG='{"$schema":"https://opencode.ai/config.json","model":"qwen/qwen3-14b","autoupdate":false,"share":"disabled","plugin":[],"provider":{"qwen":{"npm":"@ai-sdk/openai-compatible","name":"Qwen (vLLM)","options":{"baseURL":"{env:OPENAI_BASE_URL}","apiKey":"{env:OPENAI_API_KEY}"},"models":{"qwen3-14b":{}}}}}'
+OPENCODE_CFG='{"$schema":"https://opencode.ai/config.json","model":"nemotron/nemotron-30b-vulkan","autoupdate":false,"share":"disabled","plugin":[],"provider":{"nemotron":{"npm":"@ai-sdk/openai-compatible","name":"Nemotron (vLLM)","options":{"baseURL":"{env:OPENAI_BASE_URL}","apiKey":"{env:OPENAI_API_KEY}"},"models":{"nemotron-30b-vulkan":{}}}}}'
 
 # --env sets non-secret env vars in the sandbox. The model endpoint has no auth,
 # so OPENAI_API_KEY is a dummy. The OPENCODE_DISABLE_* flags keep OpenCode fully

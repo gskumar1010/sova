@@ -6,6 +6,9 @@ metadata:
   name: opencode-model-provider
   namespace: NAMESPACE_PLACEHOLDER
 spec:
+  # Gateway workspace this provider belongs to
+  workspace: default
+
   # Provider type - this maps to the OpenCode config provider
   type: openai-compatible
 
