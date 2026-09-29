@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 
-BLOCKED_RE = re.compile(r"policy_denied|blocked|connection refused|denied", re.IGNORECASE)
+BLOCKED_RE = re.compile(r"policy_denied|egress.*blocked|connection refused|host not allowed", re.IGNORECASE)
 
 # Allowlisted git hosting domains
 ALLOWED_GIT_HOSTS = ["github.com", "gitlab.com", "bitbucket.org"]
