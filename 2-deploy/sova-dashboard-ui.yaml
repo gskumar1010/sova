@@ -34,9 +34,8 @@ spec:
             - name: SANDBOX_NAME
               value: opencode-dual
             # The openshell CLI (baked into this image) connects directly to the
-            # gateway using this endpoint; the gateway then execs into the Kata
-            # sandbox. The gateway runs plaintext (disableTls) and allows
-            # unauthenticated users, so no client certs are required.
+            # standalone gateway deployed in this namespace. The gateway runs with
+            # auth.mode=none (no TLS, no authentication required).
             - name: OPENSHELL_GATEWAY_ENDPOINT
               value: http://openshell-kata:8080
             # Vulnerability scanning can take several minutes for large repos;

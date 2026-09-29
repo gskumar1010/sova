@@ -37,6 +37,10 @@ if [ -f "/home/user/workspace/SECURITY_ANALYST.md" ]; then
     echo "[startup] ✓ Staged to .agents/security-analyst.md"
 fi
 
+# Create /sandbox/tmp directory for vulnerability scanning temp files
+mkdir -p /sandbox/tmp
+echo "[startup] ✓ Created /sandbox/tmp directory"
+
 echo "[startup] File staging complete"
 
 # Execute original entrypoint with all arguments

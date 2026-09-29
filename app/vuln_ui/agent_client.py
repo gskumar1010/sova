@@ -6,7 +6,6 @@ so every agent invocation runs under the OpenShell policy proxy inside the Kata 
 """
 import os
 import re
-import subprocess
 import json
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
@@ -129,28 +128,62 @@ class AgentResult:
 
 
 def run_agent(prompt: str) -> AgentResult:
-    """Execute the vulnerability scanning agent."""
-    sandbox = os.environ.get("SANDBOX_NAME", "opencode-dual")
-    timeout = int(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "120"))
-
-    cmd = [
-        "openshell", "sandbox", "exec", "-n", sandbox, "--no-tty",
-        "--timeout", str(timeout), "--", "opencode", "run", prompt,
-    ]
-
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 30)
-    raw = (proc.stdout or "") + (proc.stderr or "")
-    blocked = bool(BLOCKED_RE.search(raw))
-    text = _clean(proc.stdout) if proc.stdout.strip() else _clean(raw)
-
-    # Try to extract SARIF data if present in output
-    sarif_data = None
+    """Execute the vulnerability scanning agent using OpenShell Python API."""
     try:
-        # Look for JSON in output that might be SARIF
-        json_match = re.search(r'\{[^{}]*"version"\s*:\s*"2\.1\.0"[^{}]*\}', raw, re.DOTALL)
-        if json_match:
-            sarif_data = json.loads(json_match.group(0))
-    except (json.JSONDecodeError, AttributeError):
-        pass
+        from openshell.sandbox import SandboxClient
+    except ImportError as e:
+        raise RuntimeError(f"openshell package not installed: {e}")
 
-    return AgentResult(text=text, egress_blocked=blocked, raw=raw, sarif_data=sarif_data)
+    sandbox_name = os.environ.get("SANDBOX_NAME", "opencode-dual")
+    gateway_endpoint = os.environ.get("OPENSHELL_GATEWAY_ENDPOINT", "http://openshell-kata:8080")
+    timeout = int(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "120"))
+    workspace = os.environ.get("OPENSHELL_WORKSPACE", "default")
+
+    # Parse gateway endpoint (format: http://host:port or https://host:port)
+    # Extract host:port for gRPC connection
+    parsed = urlparse(gateway_endpoint)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    endpoint = f"{host}:{port}"
+
+    # Create client with plaintext connection (auth.mode=none)
+    client = SandboxClient(
+        endpoint=endpoint,
+        tls=None,  # Plaintext connection
+        bearer_token=None,  # No auth
+        timeout=float(timeout)
+    )
+
+    try:
+        # Execute command in existing sandbox
+        # Command: opencode run <prompt>
+        result = client.exec(
+            sandbox=sandbox_name,
+            command=["opencode", "run", prompt],
+            workspace=workspace,
+            timeout_seconds=timeout,
+            no_login_shell=True  # Don't start an interactive shell
+        )
+
+        # Extract output - result.stdout and result.stderr are already strings
+        stdout = result.stdout if result.stdout else ""
+        stderr = result.stderr if result.stderr else ""
+        raw = stdout + stderr
+
+        # Check for blocking
+        blocked = bool(BLOCKED_RE.search(raw))
+        text = _clean(stdout) if stdout.strip() else _clean(raw)
+
+        # Try to extract SARIF data if present in output
+        sarif_data = None
+        try:
+            json_match = re.search(r'\{[^{}]*"version"\s*:\s*"2\.1\.0"[^{}]*\}', raw, re.DOTALL)
+            if json_match:
+                sarif_data = json.loads(json_match.group(0))
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+        return AgentResult(text=text, egress_blocked=blocked, raw=raw, sarif_data=sarif_data)
+
+    finally:
+        client.close()

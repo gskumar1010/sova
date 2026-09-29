@@ -12,15 +12,17 @@ RUN dnf -y install python3 python3-pip git \
 
 WORKDIR /ui
 
-# openshell CLI (provides the `openshell` binary + Python client library).
-# Installed from PyPI; the x86_64 wheel is manylinux_2_39, hence the UBI 10 base
-# (glibc >= 2.39). Pin the version to match the deployed gateway.
-ARG OPENSHELL_VERSION=0.0.103
-RUN pip3 install --no-cache-dir "openshell==${OPENSHELL_VERSION}" \
-    && openshell --version
-
+# Install Streamlit and other UI dependencies first
 COPY app/vuln_ui/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
+
+# openshell Python client library (v0.1.2).
+# Installed from PyPI; the x86_64 wheel is manylinux_2_39, hence the UBI 10 base
+# (glibc >= 2.39). NOTE: This package provides only a Python library, not a CLI binary.
+# We use the Python API directly to communicate with the OpenShell gateway via gRPC.
+# Install AFTER requirements.txt to ensure protobuf is upgraded to fix version incompatibility
+# (openshell requires googleapis-common-protos which requires protobuf>=6.33.5)
+RUN pip3 install --no-cache-dir --upgrade "protobuf>=6.33.5" "openshell>=0.1.2"
 
 COPY app/__init__.py /ui/app/__init__.py
 COPY app/vuln_ui /ui/app/vuln_ui

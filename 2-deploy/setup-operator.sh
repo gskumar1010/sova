@@ -59,10 +59,16 @@ else
 fi
 
 # --- Build and push app images ---
+# Note: You can also use ./2-deploy/build-images.sh for standalone image builds
 
 if [ "${SKIP_BUILD:-0}" = "1" ]; then
     info "SKIP_BUILD=1 - skipping image build/push (assuming images already pushed)"
 else
+    info "Building and pushing agent sandbox image..."
+    podman build --platform=linux/amd64 -f images/agent-sandbox/Dockerfile \
+        -t "${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest" .
+    podman push "${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest"
+
     info "Building and pushing SOVA app images..."
     podman build --platform=linux/amd64 -f images/vuln-orchestrator/Dockerfile \
         -t "${REGISTRY}/${NAMESPACE}/vuln-orchestrator-api:latest" .
@@ -128,74 +134,82 @@ else
 fi
 info "Model host: ${MODEL_HOST}, port: ${MODEL_PORT}"
 
-# --- 5. Generate JWT signing keys ---
+# --- 5. Verify gateway is running ---
 
-info "Generating JWT signing keys..."
-if ! oc get secret openshell-jwt-keys -n "${NAMESPACE}" >/dev/null 2>&1; then
-    JWT_DIR=$(mktemp -d)
-    mkdir -p "${JWT_DIR}/jwt"
-
-    # Generate Ed25519 key pair (required by OpenShell gateway)
-    openssl genpkey -algorithm Ed25519 -out "${JWT_DIR}/jwt/signing.pem" 2>/dev/null
-    openssl pkey -in "${JWT_DIR}/jwt/signing.pem" -pubout -out "${JWT_DIR}/jwt/public.pem" 2>/dev/null
-
-    # Generate a random key ID
-    echo "$(date +%s)-$(openssl rand -hex 4)" > "${JWT_DIR}/jwt/kid"
-
-    oc create secret generic openshell-jwt-keys -n "${NAMESPACE}" \
-        --from-file=signing.pem="${JWT_DIR}/jwt/signing.pem" \
-        --from-file=public.pem="${JWT_DIR}/jwt/public.pem" \
-        --from-file=kid="${JWT_DIR}/jwt/kid"
-    rm -rf "${JWT_DIR}"
-    info "JWT keys secret created."
-else
-    info "JWT keys secret already exists, skipping."
+info "Verifying OpenShell gateway is running..."
+# Gateway should have been deployed by install-openshell-operator.sh
+if ! helm status openshell -n "${NAMESPACE}" >/dev/null 2>&1; then
+    fatal "OpenShell gateway not found. Run ./2-deploy/install-openshell-operator.sh first."
 fi
 
-# --- 6. OpenShell gateway ---
+# Update gateway with sandbox image
+info "Updating gateway with custom sandbox image..."
+helm upgrade openshell oci://ghcr.io/nvidia/openshell/helm-chart \
+    -n "${NAMESPACE}" \
+    -f "${SCRIPT_DIR}/openshell-helm-values.yaml" \
+    --set server.sandboxImage="image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/openshell-kata-agent-sandbox:latest" \
+    --reuse-values
 
-info "Installing OpenShell gateway via Helm (latest chart)..."
-if helm status openshell -n "${NAMESPACE}" >/dev/null 2>&1; then
-    info "OpenShell already installed, upgrading..."
-    helm upgrade openshell oci://ghcr.io/nvidia/openshell/helm-chart \
-        -n "${NAMESPACE}" \
-        -f "${SCRIPT_DIR}/openshell-helm-values.yaml" \
-        --set server.sandboxImage="image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/openshell-kata-agent-sandbox:latest"
-else
-    helm install openshell oci://ghcr.io/nvidia/openshell/helm-chart \
-        -n "${NAMESPACE}" \
-        -f "${SCRIPT_DIR}/openshell-helm-values.yaml" \
-        --set server.sandboxImage="image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/openshell-kata-agent-sandbox:latest"
-fi
-
-# Check for ghcr-pull secret
-if ! oc get secret ghcr-pull -n "${NAMESPACE}" >/dev/null 2>&1; then
-    warn "Secret 'ghcr-pull' not found in ${NAMESPACE}; the gateway image pull from ghcr.io may fail."
-fi
-
-# --- 7. Wait for gateway ---
-
+# Wait for gateway
 info "Waiting for OpenShell gateway to be ready..."
 oc -n "${NAMESPACE}" rollout status statefulset/openshell-kata --timeout=120s \
     || warn "Gateway not ready yet"
 
-# --- 8. Prepare OpenCode configuration ---
+# Link image pull secrets to sandbox service account
+info "Configuring image pull secrets for sandbox service account..."
+# The service account already has internal registry dockercfg (auto-generated)
+# We need to also add ghcr-pull for supervisor init-container
+if oc get secret ghcr-pull -n "${NAMESPACE}" >/dev/null 2>&1; then
+    # Link ghcr-pull if not already linked
+    if ! oc get sa openshell-sandbox -n "${NAMESPACE}" -o yaml | grep -q "ghcr-pull"; then
+        oc secrets link openshell-sandbox ghcr-pull --for=pull -n "${NAMESPACE}"
+        info "✓ Linked ghcr-pull secret to openshell-sandbox service account"
+    else
+        info "✓ ghcr-pull already linked to openshell-sandbox service account"
+    fi
+else
+    warn "ghcr-pull secret not found - supervisor init-container pull may fail"
+fi
+
+# --- 6. Prepare OpenCode configuration ---
 
 info "Preparing OpenCode configuration..."
-# OpenCode configuration injected into the sandbox. It is passed inline via
-# OPENCODE_CONFIG_CONTENT so it does not depend on the baked image config.
-OPENCODE_CFG='{"$schema":"https://opencode.ai/config.json","model":"qwen/qwen3-14b","autoupdate":false,"share":"disabled","plugin":[],"provider":{"qwen":{"npm":"@ai-sdk/openai-compatible","name":"Qwen (vLLM)","options":{"baseURL":"{env:OPENAI_BASE_URL}","apiKey":"{env:OPENAI_API_KEY}"},"models":{"qwen3-14b":{}}}}}'
+# Create a ConfigMap with the OpenCode configuration to avoid sed escaping issues
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-config
+  namespace: ${NAMESPACE}
+data:
+  config.json: |
+    {
+      "\$schema": "https://opencode.ai/config.json",
+      "model": "nemotron/nemotron-30b-vulkan",
+      "autoupdate": false,
+      "share": "disabled",
+      "plugin": [],
+      "provider": {
+        "nemotron": {
+          "npm": "@ai-sdk/openai-compatible",
+          "name": "Nemotron (vLLM)",
+          "options": {
+            "baseURL": "{env:OPENAI_BASE_URL}",
+            "apiKey": "{env:OPENAI_API_KEY}"
+          },
+          "models": {
+            "nemotron-30b-vulkan": {}
+          }
+        }
+      }
+    }
+EOF
 
-# --- 9. Apply OpenShell CRDs ---
+# --- 7. Apply OpenShell CRDs ---
 
-info "Applying OpenShell CRDs (Provider, Policy, Sandbox)..."
+info "Applying OpenShell CRDs (Policy, Sandbox)..."
 
-# Apply OpenShellProvider
-info "Creating OpenShellProvider..."
-sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
-    -e "s|MODEL_ENDPOINT_PLACEHOLDER|${MODEL_ENDPOINT}|g" \
-    "${SCRIPT_DIR}/openshell-provider.yaml" \
-    | oc apply -f -
+# Note: Provider is no longer needed - credentials are injected directly via environment variables
 
 # Apply OpenShellPolicy
 info "Creating OpenShellPolicy..."
@@ -207,21 +221,19 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
 
 # Apply OpenShellSandbox
 info "Creating OpenShellSandbox..."
-# Escape the JSON config for use in sed - need to escape /, ", and $
-OPENCODE_CFG_ESCAPED=$(echo "${OPENCODE_CFG}" | sed 's|/|\\/|g' | sed 's|"|\\"|g' | sed 's|\$|\\$|g')
+# Config is now in ConfigMap, no inline JSON escaping needed
 sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     -e "s|REGISTRY_PLACEHOLDER|image-registry.openshift-image-registry.svc:5000/${NAMESPACE}|g" \
     -e "s|MODEL_ENDPOINT_PLACEHOLDER|${MODEL_ENDPOINT}|g" \
     -e "s|API_KEY_PLACEHOLDER|${OPENAI_API_KEY}|g" \
-    -e "s|OPENCODE_CFG_PLACEHOLDER|${OPENCODE_CFG_ESCAPED}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 
-# --- 10. Wait for sandbox pod ---
+# --- 8. Wait for sandbox pod ---
 
 info "Waiting for sandbox pod to be created..."
-# The operator creates a pod based on the OpenShellSandbox CRD
-# Pod name format: <namespace>--<sandbox-name> or similar
+# With standalone gateway, pods are created in the application namespace
+# Pod name format: <namespace>--<sandbox-name>
 SANDBOX_POD=""
 for _ in $(seq 1 30); do
     SANDBOX_POD=$(oc get pods -n "${NAMESPACE}" -l app=vuln-agent,component=sandbox -o name 2>/dev/null \
@@ -244,7 +256,7 @@ else
     oc get openshellsandbox -n "${NAMESPACE}" opencode-dual -o yaml 2>/dev/null || true
 fi
 
-# --- 11. Stage the vulnerability scanning tool + security analyst persona ---
+# --- 9. Stage the vulnerability scanning tool + security analyst persona ---
 # The image bakes these into /home/user/workspace, but the sandbox agent runs
 # with its cwd in the PVC-backed workspace (/sandbox). Copy them so OpenCode
 # finds vuln_scan.py and loads the SECURITY_ANALYST.md persona.
@@ -253,10 +265,11 @@ if [ -n "${SANDBOX_POD}" ]; then
     info "Staging vulnerability scanning tool and security analyst persona..."
     # Wait a bit for the container to be fully ready
     sleep 5
-    # Try to copy files with retry
+
+    # Stage files and create directories
     for attempt in $(seq 1 3); do
         if oc exec -n "${NAMESPACE}" "${SANDBOX_POD}" -- \
-            sh -c 'cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ && ls /sandbox/vuln_scan.py /sandbox/SECURITY_ANALYST.md' \
+            sh -c 'mkdir -p /sandbox/tmp /sandbox/.config/opencode && cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ && ls /sandbox/vuln_scan.py /sandbox/SECURITY_ANALYST.md' \
             >/dev/null 2>&1; then
             info "Files staged successfully"
             break
@@ -265,6 +278,30 @@ if [ -n "${SANDBOX_POD}" ]; then
             sleep 2
         fi
     done
+
+    # Write OpenCode config to /sandbox/.config/opencode/config.json
+    info "Writing OpenCode configuration..."
+    echo '{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "nemotron/nemotron-30b-vulkan",
+  "autoupdate": false,
+  "share": "disabled",
+  "plugin": [],
+  "provider": {
+    "nemotron": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Nemotron (vLLM)",
+      "options": {
+        "baseURL": "{env:OPENAI_BASE_URL}",
+        "apiKey": "{env:OPENAI_API_KEY}"
+      },
+      "models": {
+        "nemotron-30b-vulkan": {}
+      }
+    }
+  }
+}' | oc exec -i -n "${NAMESPACE}" "${SANDBOX_POD}" -- sh -c 'cat > /sandbox/.config/opencode/config.json'
+    info "✓ OpenCode config written to /sandbox/.config/opencode/config.json"
 fi
 
 # --- Done ---
@@ -280,7 +317,7 @@ info "OpenShell gateway: $(oc get pod -n "${NAMESPACE}" -l app.kubernetes.io/nam
 info "Agent sandbox:     opencode-dual"
 echo ""
 info "CRD Status:"
-oc get openshellpolicy,openshellprovider,openshellsandbox -n "${NAMESPACE}" 2>/dev/null || true
+oc get openshellpolicy,openshellsandbox -n "${NAMESPACE}" 2>/dev/null || true
 echo ""
 info "Pod status:"
 oc get pod -n "${NAMESPACE}" -l app=vuln-agent 2>/dev/null || oc get pod "${SANDBOX_POD}" -n "${NAMESPACE}" -o wide 2>/dev/null || true

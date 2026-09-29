@@ -6,18 +6,20 @@ metadata:
   name: opencode-dual
   namespace: NAMESPACE_PLACEHOLDER
 spec:
+  # Gateway workspace this sandbox belongs to
+  workspace: default
+
   # Reference to the policy (hot-reloadable for network/provider sections)
   policyRef: vuln-agent-policy
 
-  # Reference to credential providers (array of provider names)
-  providers:
-    - opencode-model-provider
+  # Note: Credentials are injected directly via environment variables below
+  # No provider needed since OPENAI_API_KEY and OPENAI_BASE_URL are set directly
 
   # Container image for the sandbox
   image: REGISTRY_PLACEHOLDER/openshell-kata-agent-sandbox:latest
 
   # Runtime class for Kata Containers
-  runtimeClassName: kata
+  # runtimeClassName: kata  # Commented out - bundled gateway may not support custom RuntimeClasses
 
   # Environment variables (non-secret) - map of key-value pairs
   # Note: Including OPENAI_API_KEY directly due to gateway credential binding mode
@@ -29,7 +31,7 @@ spec:
     OPENCODE_PURE: "1"
     OPENCODE_DISABLE_LSP_DOWNLOAD: "1"
     OPENCODE_DB: ":memory:"
-    OPENCODE_CONFIG_CONTENT: 'OPENCODE_CFG_PLACEHOLDER'
+    OPENCODE_CONFIG: "/sandbox/.config/opencode/config.json"
 
   # Log level
   logLevel: info

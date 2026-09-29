@@ -42,10 +42,12 @@ server:
   sandboxImage: "REGISTRY_PLACEHOLDER/openshell-kata-agent-sandbox:latest"
   sandboxImagePullPolicy: "Always"
 
-  # Sandbox pods pull the supervisor init-container from ghcr; give them the
-  # same pull secret (must exist in the sandbox namespace = release namespace).
-  sandboxImagePullSecrets:
-    - name: ghcr-pull
+  # Sandbox pods need two secrets:
+  # 1. ghcr-pull: for supervisor init-container from ghcr.io
+  # 2. Internal registry dockercfg: for agent-sandbox image (auto-added by service account)
+  # We'll link ghcr-pull to the service account in setup-operator.sh
+  # Don't override sandboxImagePullSecrets here - let service account provide both
+  sandboxImagePullSecrets: []
 
   sandboxNamespace: ""
 

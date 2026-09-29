@@ -60,24 +60,33 @@ Repository: {git_url}
         st.session_state.history.append(("user", prompt))
 
         with st.spinner("Agent scanning repository inside the sandbox..."):
-            result = run_agent(prompt)
+            try:
+                result = run_agent(prompt)
+                st.session_state.history.append(("assistant", result))
 
-        st.session_state.history.append(("assistant", result))
-
-        # Store SARIF data if available
-        if result.sarif_data:
-            st.session_state.current_sarif = result.sarif_data
+                # Store SARIF data if available
+                if result.sarif_data:
+                    st.session_state.current_sarif = result.sarif_data
+            except Exception as e:
+                st.error(f"Error running agent: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
 
 # Custom prompt input (for advanced users)
 prompt = st.chat_input("Or enter a custom security analysis prompt...")
 if prompt:
     st.session_state.history.append(("user", prompt))
     with st.spinner("Agent working inside the sandbox..."):
-        result = run_agent(prompt)
-    st.session_state.history.append(("assistant", result))
+        try:
+            result = run_agent(prompt)
+            st.session_state.history.append(("assistant", result))
 
-    if result.sarif_data:
-        st.session_state.current_sarif = result.sarif_data
+            if result.sarif_data:
+                st.session_state.current_sarif = result.sarif_data
+        except Exception as e:
+            st.error(f"Error running agent: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
 
 # Display conversation history
 for role, item in st.session_state.history:

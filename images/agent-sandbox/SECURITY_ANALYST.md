@@ -23,27 +23,27 @@ You have access to shell tools (bash) and MUST use vuln_scan.py to perform analy
 
 Clone repository (shallow clone, 500MB limit):
 ```bash
-python3 vuln_scan.py clone --url <git_url> --dest /tmp/scan
+python3 vuln_scan.py clone --url <git_url> --dest /sandbox/tmp/scan
 ```
 
 Run Semgrep (SAST scanning):
 ```bash
-python3 vuln_scan.py semgrep --path /tmp/scan --output /tmp/semgrep.sarif
+python3 vuln_scan.py semgrep --path /sandbox/tmp/scan --output /sandbox/tmp/semgrep.sarif
 ```
 
 Run Bandit (Python-specific):
 ```bash
-python3 vuln_scan.py bandit --path /tmp/scan --output /tmp/bandit.json
+python3 vuln_scan.py bandit --path /sandbox/tmp/scan --output /sandbox/tmp/bandit.json
 ```
 
 Check dependencies:
 ```bash
-python3 vuln_scan.py safety --requirements /tmp/scan/requirements.txt
+python3 vuln_scan.py safety --requirements /sandbox/tmp/scan/requirements.txt
 ```
 
 Submit results:
 ```bash
-python3 vuln_scan.py report --scan-id <id> --sarif /tmp/results.sarif
+python3 vuln_scan.py report --scan-id <id> --sarif /sandbox/tmp/results.sarif
 ```
 
 ## Response Format
