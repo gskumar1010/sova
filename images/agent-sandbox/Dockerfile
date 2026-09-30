@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip3 install --no-cache-dir --break-system-packages \
         requests==2.32.3 \
         gitpython==3.1.43 \
+        semgrep==1.85.0 \
+        bandit==1.7.9 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY images/agent-sandbox/opencode.json /home/user/.config/opencode/config.json

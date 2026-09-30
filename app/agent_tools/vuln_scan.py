@@ -75,31 +75,82 @@ def clone_repo(git_url: str, dest: str) -> dict:
 
 
 def run_semgrep_scan(path: str, output: str) -> dict:
-    """Execute Semgrep via orchestrator API."""
+    """Execute Semgrep locally in the sandbox."""
     try:
-        resp = requests.post(
-            f"{base_url()}/tools/semgrep",
-            json={"path": path, "output": output},
-            timeout=320  # Slightly longer than scanner timeout
+        # Run semgrep directly in the sandbox
+        cmd = [
+            "semgrep",
+            "--config=p/security-audit",
+            "--config=p/secrets",
+            "--sarif",
+            f"--output={output}",
+            "--metrics=off",
+            path
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env={**os.environ, "HOME": "/tmp"}  # Writable HOME for semgrep cache
         )
-        resp.raise_for_status()
-        return resp.json()
-    except requests.RequestException as e:
-        return {"error": f"Semgrep API call failed: {str(e)}"}
+
+        # Read SARIF output
+        if os.path.exists(output):
+            with open(output, 'r') as f:
+                sarif_data = json.load(f)
+            return {
+                "status": "success",
+                "sarif": sarif_data,
+                "output_file": output,
+                "exit_code": result.returncode
+            }
+        else:
+            return {"error": f"Semgrep completed but output file not found: {output}"}
+
+    except subprocess.TimeoutExpired:
+        return {"error": "Semgrep timed out after 300 seconds"}
+    except Exception as e:
+        return {"error": f"Semgrep execution failed: {str(e)}"}
 
 
 def run_bandit_scan(path: str, output: str) -> dict:
-    """Execute Bandit via orchestrator API."""
+    """Execute Bandit locally in the sandbox."""
     try:
-        resp = requests.post(
-            f"{base_url()}/tools/bandit",
-            json={"path": path, "output": output},
-            timeout=320
+        # Run bandit directly in the sandbox
+        cmd = [
+            "bandit",
+            "-r", path,
+            "-f", "json",
+            "-o", output
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env={**os.environ, "HOME": "/tmp"}  # Writable HOME
         )
-        resp.raise_for_status()
-        return resp.json()
-    except requests.RequestException as e:
-        return {"error": f"Bandit API call failed: {str(e)}"}
+
+        # Read JSON output
+        if os.path.exists(output):
+            with open(output, 'r') as f:
+                bandit_data = json.load(f)
+            return {
+                "status": "success",
+                "results": bandit_data,
+                "output_file": output,
+                "exit_code": result.returncode
+            }
+        else:
+            return {"error": f"Bandit completed but output file not found: {output}"}
+
+    except subprocess.TimeoutExpired:
+        return {"error": "Bandit timed out after 300 seconds"}
+    except Exception as e:
+        return {"error": f"Bandit execution failed: {str(e)}"}
 
 
 def run_safety_scan(requirements_file: str) -> dict:
