@@ -171,20 +171,46 @@ else
     warn "ghcr-pull secret not found - supervisor init-container pull may fail"
 fi
 
-# --- 6. Fix OpenShell NetworkPolicy for sandbox egress ---
+# --- 6. Pre-create NetworkPolicy with correct egress rules ---
 
-info "Fixing OpenShell sandbox NetworkPolicy to allow egress..."
-# The openshell-sandbox-workloads NetworkPolicy has Egress in policyTypes but no egress rules,
-# which blocks ALL outbound traffic from sandbox workloads. OpenShell's own network broker
-# enforces the actual allow-list, so we need to allow all egress at the Kubernetes level.
-if oc get networkpolicy openshell-sandbox-workloads -n "${NAMESPACE}" >/dev/null 2>&1; then
-    oc patch networkpolicy openshell-sandbox-workloads -n "${NAMESPACE}" --type=json \
-        -p='[{"op": "add", "path": "/spec/egress", "value": [{}]}]' 2>/dev/null \
-        || warn "NetworkPolicy patch failed - may already be patched"
-    info "✓ OpenShell sandbox NetworkPolicy patched to allow egress"
-else
-    warn "openshell-sandbox-workloads NetworkPolicy not found - may need manual patching"
-fi
+info "Creating NetworkPolicy with correct egress rules..."
+# IMPORTANT: OpenShell creates a restrictive NetworkPolicy (openshell-sandbox-workloads)
+# that blocks ALL egress by default. If we patch it after OpenShell creates it, OpenShell
+# detects tampering and suspends the sandbox. Instead, we create the NetworkPolicy with
+# the correct rules BEFORE OpenShell tries to create it. OpenShell will use our version.
+
+# Delete existing NetworkPolicy if present
+oc delete networkpolicy openshell-sandbox-workloads -n "${NAMESPACE}" 2>/dev/null || true
+
+# Create NetworkPolicy with egress allowed (OpenShell broker will enforce endpoint allow-list)
+cat <<EOF | oc apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openshell-sandbox-workloads
+  namespace: ${NAMESPACE}
+  labels:
+    openshell.ai/component: sandbox-workload-fence
+    openshell.ai/managed-by: openshell
+spec:
+  podSelector:
+    matchLabels:
+      openshell.ai/boundary-role: workload
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          openshell.ai/boundary-role: supervisor
+    ports:
+    - port: 5500
+      protocol: TCP
+  egress:
+  - {}
+EOF
+info "✓ NetworkPolicy created with egress allowed"
 
 # --- 7. Prepare OpenCode configuration ---
 
@@ -258,7 +284,7 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 
-# --- 10. Wait for sandbox and UI to be ready ---
+# --- 10. Wait for sandbox and patch NetworkPolicy ---
 
 info "Waiting for sandbox to be ready..."
 for _ in $(seq 1 60); do
