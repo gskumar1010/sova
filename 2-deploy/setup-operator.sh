@@ -339,31 +339,33 @@ try:
         print(f'ERROR: {result.stderr}')
         sys.exit(1)
 
-    # 4. Write OpenCode config with proper JSON escaping for bash
+    # 4. Write OpenCode config using json.dumps for proper escaping
     print('Writing OpenCode config...')
-    config = '''{
-  \"\$schema\": \"https://opencode.ai/config.json\",
-  \"model\": \"nemotron/nemotron-30b-vulkan\",
-  \"autoupdate\": false,
-  \"share\": \"disabled\",
-  \"plugin\": [],
-  \"provider\": {
-    \"nemotron\": {
-      \"npm\": \"@ai-sdk/openai-compatible\",
-      \"name\": \"Nemotron (vLLM)\",
-      \"options\": {
-        \"baseURL\": \"{env:OPENAI_BASE_URL}\",
-        \"apiKey\": \"{env:OPENAI_API_KEY}\"
-      },
-      \"models\": {
-        \"nemotron-30b-vulkan\": {}
-      }
+    import json
+    config_dict = {
+        '\$schema': 'https://opencode.ai/config.json',
+        'model': 'nemotron/nemotron-30b-vulkan',
+        'autoupdate': False,
+        'share': 'disabled',
+        'plugin': [],
+        'provider': {
+            'nemotron': {
+                'npm': '@ai-sdk/openai-compatible',
+                'name': 'Nemotron (vLLM)',
+                'options': {
+                    'baseURL': '{env:OPENAI_BASE_URL}',
+                    'apiKey': '{env:OPENAI_API_KEY}'
+                },
+                'models': {
+                    'nemotron-30b-vulkan': {}
+                }
+            }
+        }
     }
-  }
-}'''
+    config = json.dumps(config_dict, indent=2)
     result = client.exec(
         sandbox='opencode-dual',
-        command=['sh', '-c', 'cat > /sandbox/.config/opencode/config.json << \"EOFCONFIG\"\\n' + config + '\\nEOFCONFIG'],
+        command=['sh', '-c', 'cat > /sandbox/.config/opencode/config.json << '"'"'EOFCONFIG'"'"'\\n' + config + '\\nEOFCONFIG'],
         workspace='default',
         timeout_seconds=10,
         no_login_shell=True
