@@ -341,38 +341,33 @@ try:
         print(f"ERROR: {result.stderr}")
         sys.exit(1)
 
-    # 4. Write OpenCode config - write directly using Python, no heredoc
+    # 4. Write OpenCode config using base64 (bypasses ALL escaping issues)
     print("Writing OpenCode config...")
+    import base64
+    config_json = """{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "nemotron/nemotron-30b-vulkan",
+  "autoupdate": false,
+  "share": "disabled",
+  "plugin": [],
+  "provider": {
+    "nemotron": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Nemotron (vLLM)",
+      "options": {
+        "baseURL": "{env:OPENAI_BASE_URL}",
+        "apiKey": "{env:OPENAI_API_KEY}"
+      },
+      "models": {
+        "nemotron-30b-vulkan": {}
+      }
+    }
+  }
+}"""
+    config_b64 = base64.b64encode(config_json.encode()).decode()
     result = client.exec(
         sandbox="opencode-dual",
-        command=["python3", "-c", """
-import json
-config = {
-    "dollar_schema": "https://opencode.ai/config.json",
-    "model": "nemotron/nemotron-30b-vulkan",
-    "autoupdate": False,
-    "share": "disabled",
-    "plugin": [],
-    "provider": {
-        "nemotron": {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "Nemotron (vLLM)",
-            "options": {
-                "baseURL": "{env:OPENAI_BASE_URL}",
-                "apiKey": "{env:OPENAI_API_KEY}"
-            },
-            "models": {
-                "nemotron-30b-vulkan": {}
-            }
-        }
-    }
-}
-# Replace dollar_schema with $schema
-config_str = json.dumps(config, indent=2)
-config_str = config_str.replace('"dollar_schema"', '"$schema"')
-with open("/sandbox/.config/opencode/config.json", "w") as f:
-    f.write(config_str)
-"""],
+        command=["sh", "-c", f"echo {config_b64} | base64 -d > /sandbox/.config/opencode/config.json"],
         workspace="default",
         timeout_seconds=10,
         no_login_shell=True
