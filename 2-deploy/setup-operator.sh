@@ -171,46 +171,15 @@ else
     warn "ghcr-pull secret not found - supervisor init-container pull may fail"
 fi
 
-# --- 6. Pre-create NetworkPolicy with correct egress rules ---
+# --- 6. Skip NetworkPolicy management ---
 
-info "Creating NetworkPolicy with correct egress rules..."
-# IMPORTANT: OpenShell creates a restrictive NetworkPolicy (openshell-sandbox-workloads)
-# that blocks ALL egress by default. If we patch it after OpenShell creates it, OpenShell
-# detects tampering and suspends the sandbox. Instead, we create the NetworkPolicy with
-# the correct rules BEFORE OpenShell tries to create it. OpenShell will use our version.
+# IMPORTANT: OpenShell manages the NetworkPolicy (openshell-sandbox-workloads) and detects
+# any modifications as tampering, suspending the sandbox. We cannot create, modify, or delete
+# it without triggering this security check. Instead, we rely entirely on OpenShell's policy
+# enforcement via the OpenShellPolicy CRD which allows specific endpoints (model, API, git).
+# The NetworkPolicy will block general egress, but the OpenShell broker proxies allowed traffic.
 
-# Delete existing NetworkPolicy if present
-oc delete networkpolicy openshell-sandbox-workloads -n "${NAMESPACE}" 2>/dev/null || true
-
-# Create NetworkPolicy with egress allowed (OpenShell broker will enforce endpoint allow-list)
-cat <<EOF | oc apply -f -
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: openshell-sandbox-workloads
-  namespace: ${NAMESPACE}
-  labels:
-    openshell.ai/component: sandbox-workload-fence
-    openshell.ai/managed-by: openshell
-spec:
-  podSelector:
-    matchLabels:
-      openshell.ai/boundary-role: workload
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          openshell.ai/boundary-role: supervisor
-    ports:
-    - port: 5500
-      protocol: TCP
-  egress:
-  - {}
-EOF
-info "✓ NetworkPolicy created with egress allowed"
+info "Skipping NetworkPolicy management (using OpenShellPolicy CRD for endpoint allow-list)"
 
 # --- 7. Prepare OpenCode configuration ---
 
