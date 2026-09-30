@@ -22,6 +22,18 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          env:
+            # Set HOME to writable location for semgrep/bandit cache
+            - name: HOME
+              value: /tmp
+            # Semgrep settings directory (prevent permission errors on /.semgrep)
+            - name: SEMGREP_SETTINGS_FILE
+              value: /tmp/.semgrep/settings.yml
+            # Disable semgrep version checks and telemetry
+            - name: SEMGREP_ENABLE_VERSION_CHECK
+              value: "0"
+            - name: SEMGREP_SEND_METRICS
+              value: "off"
           readinessProbe:
             httpGet:
               path: /healthz
