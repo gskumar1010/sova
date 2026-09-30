@@ -41,31 +41,10 @@ fi
 mkdir -p /sandbox/tmp
 echo "[startup] ✓ Created /sandbox/tmp directory"
 
-# Create OpenCode configuration
-mkdir -p /sandbox/.config/opencode
-cat > /sandbox/.config/opencode/config.json <<'EOFCONFIG'
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "nemotron/nemotron-30b-vulkan",
-  "autoupdate": false,
-  "share": "disabled",
-  "plugin": [],
-  "provider": {
-    "nemotron": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Nemotron (vLLM)",
-      "options": {
-        "baseURL": "{env:OPENAI_BASE_URL}",
-        "apiKey": "{env:OPENAI_API_KEY}"
-      },
-      "models": {
-        "nemotron-30b-vulkan": {}
-      }
-    }
-  }
-}
-EOFCONFIG
-echo "[startup] ✓ Created OpenCode config"
+# OpenCode configuration will be staged by setup-operator.sh via OpenShell API
+# This ensures config is written AFTER /sandbox PVC is mounted
+# Startup script runs BEFORE PVC mount, so files would be lost
+echo "[startup] ✓ OpenCode config will be staged via API after PVC mount"
 
 echo "[startup] File staging complete"
 

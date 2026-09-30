@@ -276,133 +276,126 @@ oc wait --for=condition=Available deployment/sova-dashboard-ui \
 
 # --- 11. Stage files in sandbox using OpenShell API ---
 # Use the OpenShell Python API via the sova-dashboard-ui pod to stage files.
-# This avoids fragile pod-finding logic and works regardless of OpenShell's pod naming.
+# This must run AFTER the PVC is mounted (startup.sh runs before mount).
 
 info "Staging files in sandbox using OpenShell API..."
 
-# Create a Python script to stage files via OpenShell API
-cat > /tmp/stage_sandbox_files.py <<'EOF'
+# Execute staging directly via oc exec with inline Python
+oc exec -n "${NAMESPACE}" deployment/sova-dashboard-ui -- python3 -c "
 from openshell.sandbox import SandboxClient
 import sys
-import os
 
-def main():
-    gateway = os.environ.get('OPENSHELL_GATEWAY_ENDPOINT', 'http://openshell-kata:8080')
-    host = gateway.replace('http://', '').replace('https://', '').split(':')[0]
-    port_part = gateway.replace('http://', '').replace('https://', '').split(':')
-    port = int(port_part[1]) if len(port_part) > 1 else 8080
+client = SandboxClient(endpoint='openshell-kata:8080', tls=None, bearer_token=None, timeout=60.0)
 
-    client = SandboxClient(endpoint=f'{host}:{port}', tls=None, bearer_token=None, timeout=30.0)
-    try:
-        # 1. Create directories
-        print("Creating directories...")
-        result = client.exec(
-            sandbox='opencode-dual',
-            command=['mkdir', '-p', '/sandbox/tmp', '/sandbox/.config/opencode', '/sandbox/.agents'],
-            workspace='default',
-            timeout_seconds=10,
-            no_login_shell=True
-        )
-        if result.exit_code != 0:
-            print(f"ERROR creating directories: {result.stderr}", file=sys.stderr)
-            return 1
+    # 1. Create directories
+    print('Creating directories...')
+    result = client.exec(
+        sandbox='opencode-dual',
+        command=['mkdir', '-p', '/sandbox/tmp', '/sandbox/.config/opencode', '/sandbox/.agents'],
+        workspace='default',
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code != 0:
+        print(f'ERROR: {result.stderr}')
+        sys.exit(1)
 
-        # 2. Copy files from image to sandbox
-        print("Copying vuln_scan.py and SECURITY_ANALYST.md...")
-        result = client.exec(
-            sandbox='opencode-dual',
-            command=['cp', '-f', '/home/user/workspace/vuln_scan.py', '/home/user/workspace/SECURITY_ANALYST.md', '/sandbox/'],
-            workspace='default',
-            timeout_seconds=10,
-            no_login_shell=True
-        )
-        if result.exit_code != 0:
-            print(f"ERROR copying files: {result.stderr}", file=sys.stderr)
-            return 1
+    # 2. Copy files from image to sandbox
+    print('Copying vuln_scan.py...')
+    result = client.exec(
+        sandbox='opencode-dual',
+        command=['cp', '-f', '/home/user/workspace/vuln_scan.py', '/sandbox/'],
+        workspace='default',
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code != 0:
+        print(f'ERROR: {result.stderr}')
+        sys.exit(1)
 
-        # 3. Copy persona to .agents directory
-        print("Copying persona to .agents...")
-        result = client.exec(
-            sandbox='opencode-dual',
-            command=['cp', '-f', '/home/user/workspace/SECURITY_ANALYST.md', '/sandbox/.agents/security-analyst.md'],
-            workspace='default',
-            timeout_seconds=10,
-            no_login_shell=True
-        )
-        if result.exit_code != 0:
-            print(f"ERROR copying persona: {result.stderr}", file=sys.stderr)
-            return 1
+    print('Copying SECURITY_ANALYST.md...')
+    result = client.exec(
+        sandbox='opencode-dual',
+        command=['cp', '-f', '/home/user/workspace/SECURITY_ANALYST.md', '/sandbox/'],
+        workspace='default',
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code != 0:
+        print(f'ERROR: {result.stderr}')
+        sys.exit(1)
 
-        # 4. Write OpenCode config
-        print("Writing OpenCode config...")
-        config = '''{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "nemotron/nemotron-30b-vulkan",
-  "autoupdate": false,
-  "share": "disabled",
-  "plugin": [],
-  "provider": {
-    "nemotron": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Nemotron (vLLM)",
-      "options": {
-        "baseURL": "{env:OPENAI_BASE_URL}",
-        "apiKey": "{env:OPENAI_API_KEY}"
+    # 3. Copy persona to .agents directory
+    print('Copying persona to .agents...')
+    result = client.exec(
+        sandbox='opencode-dual',
+        command=['cp', '-f', '/home/user/workspace/SECURITY_ANALYST.md', '/sandbox/.agents/security-analyst.md'],
+        workspace='default',
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code != 0:
+        print(f'ERROR: {result.stderr}')
+        sys.exit(1)
+
+    # 4. Write OpenCode config with proper JSON escaping for Python
+    print('Writing OpenCode config...')
+    config = '''{
+  \"\\\$schema\": \"https://opencode.ai/config.json\",
+  \"model\": \"nemotron/nemotron-30b-vulkan\",
+  \"autoupdate\": false,
+  \"share\": \"disabled\",
+  \"plugin\": [],
+  \"provider\": {
+    \"nemotron\": {
+      \"npm\": \"@ai-sdk/openai-compatible\",
+      \"name\": \"Nemotron (vLLM)\",
+      \"options\": {
+        \"baseURL\": \"{env:OPENAI_BASE_URL}\",
+        \"apiKey\": \"{env:OPENAI_API_KEY}\"
       },
-      "models": {
-        "nemotron-30b-vulkan": {}
+      \"models\": {
+        \"nemotron-30b-vulkan\": {}
       }
     }
   }
 }'''
-        result = client.exec(
-            sandbox='opencode-dual',
-            command=['sh', '-c', f'cat > /sandbox/.config/opencode/config.json << "EOFCONFIG"\n{config}\nEOFCONFIG'],
-            workspace='default',
-            timeout_seconds=10,
-            no_login_shell=True
-        )
-        if result.exit_code != 0:
-            print(f"ERROR writing config: {result.stderr}", file=sys.stderr)
-            return 1
+    result = client.exec(
+        sandbox='opencode-dual',
+        command=['sh', '-c', 'cat > /sandbox/.config/opencode/config.json << \"EOFCONFIG\"\\n' + config + '\\nEOFCONFIG'],
+        workspace='default',
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code != 0:
+        print(f'ERROR: {result.stderr}')
+        sys.exit(1)
 
-        # 5. Verify
-        print("Verifying staged files...")
-        result = client.exec(
-            sandbox='opencode-dual',
-            command=['ls', '-lh', '/sandbox/vuln_scan.py', '/sandbox/SECURITY_ANALYST.md', '/sandbox/.config/opencode/config.json', '/sandbox/.agents/security-analyst.md'],
-            workspace='default',
-            timeout_seconds=10,
-            no_login_shell=True
-        )
-        if result.exit_code == 0:
-            print("✓ All files staged successfully")
-            return 0
-        else:
-            print(f"ERROR verifying files: {result.stderr}", file=sys.stderr)
-            return 1
+    # 5. Verify all files
+    print('Verifying staged files...')
+    result = client.exec(
+        sandbox='opencode-dual',
+        command=['ls', '-lh', '/sandbox/vuln_scan.py', '/sandbox/.config/opencode/config.json', '/sandbox/.agents/security-analyst.md'],
+        workspace='default',
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code == 0:
+        print('✓ All files staged successfully')
+        print(result.stdout)
+    else:
+        print(f'ERROR: {result.stderr}')
+        sys.exit(1)
 
-    finally:
-        client.close()
+finally:
+    client.close()
+" 2>&1
 
-if __name__ == '__main__':
-    sys.exit(main())
-EOF
-
-# Execute the staging script via sova-dashboard-ui pod
-info "Executing file staging script..."
-if oc exec -n "${NAMESPACE}" deployment/sova-dashboard-ui -- python3 - < /tmp/stage_sandbox_files.py 2>&1 | tee /tmp/staging_output.log; then
-    if grep -q "All files staged successfully" /tmp/staging_output.log; then
-        info "✓ Files staged successfully in sandbox"
-    else
-        warn "Staging script ran but verification failed - check output above"
-    fi
+if [ $? -eq 0 ]; then
+    info "✓ Files staged successfully in sandbox"
 else
-    warn "Failed to execute staging script - manual staging may be required"
-    warn "Check logs: /tmp/staging_output.log"
+    warn "File staging failed - you may need to stage files manually"
 fi
-
-rm -f /tmp/stage_sandbox_files.py /tmp/staging_output.log
 
 # --- Done ---
 
