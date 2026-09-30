@@ -77,9 +77,9 @@ def clone_repo(git_url: str, dest: str) -> dict:
 def run_semgrep_scan(path: str, output: str) -> dict:
     """Execute Semgrep locally in the sandbox."""
     try:
-        # Run semgrep directly in the sandbox
+        # Run semgrep from Python 3.12 venv (base image has Python 3.14 which breaks semgrep)
         cmd = [
-            "semgrep",
+            "/opt/scantools/bin/semgrep",
             "--config=p/security-audit",
             "--config=p/secrets",
             "--sarif",
@@ -118,9 +118,9 @@ def run_semgrep_scan(path: str, output: str) -> dict:
 def run_bandit_scan(path: str, output: str) -> dict:
     """Execute Bandit locally in the sandbox."""
     try:
-        # Run bandit directly in the sandbox
+        # Run bandit from Python 3.12 venv (consistency with semgrep)
         cmd = [
-            "bandit",
+            "/opt/scantools/bin/bandit",
             "-r", path,
             "-f", "json",
             "-o", output

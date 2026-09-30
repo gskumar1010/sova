@@ -12,19 +12,28 @@ FROM ghcr.io/nvidia/openshell-community/sandboxes/base:latest
 
 USER root
 
+# Install Python 3.12 from deadsnakes PPA (base image has Python 3.14 which breaks semgrep)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
+        software-properties-common \
+        gpg-agent \
+    && add-apt-repository ppa:deadsnakes/ppa -y \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.12 \
+        python3.12-venv \
+        python3.12-dev \
         curl \
         jq \
         git \
         ripgrep \
-    && pip3 install --no-cache-dir --break-system-packages \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create venv with Python 3.12 and install semgrep/bandit
+RUN python3.12 -m venv /opt/scantools \
+    && /opt/scantools/bin/pip install --no-cache-dir \
         requests==2.32.3 \
         gitpython==3.1.43 \
         semgrep==1.85.0 \
-        bandit==1.7.9 \
-    && rm -rf /var/lib/apt/lists/*
+        bandit==1.7.9
 
 COPY images/agent-sandbox/opencode.json /home/user/.config/opencode/config.json
 COPY app/agent_tools/vuln_scan.py /home/user/workspace/vuln_scan.py
