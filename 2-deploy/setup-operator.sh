@@ -338,10 +338,10 @@ client = SandboxClient(endpoint='openshell-kata:8080', tls=None, bearer_token=No
         print(f'ERROR: {result.stderr}')
         sys.exit(1)
 
-    # 4. Write OpenCode config with proper JSON escaping for Python
+    # 4. Write OpenCode config with proper JSON escaping for bash
     print('Writing OpenCode config...')
     config = '''{
-  \"\\\$schema\": \"https://opencode.ai/config.json\",
+  \"\$schema\": \"https://opencode.ai/config.json\",
   \"model\": \"nemotron/nemotron-30b-vulkan\",
   \"autoupdate\": false,
   \"share\": \"disabled\",
