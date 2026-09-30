@@ -366,7 +366,7 @@ try:
     config_json = json.dumps(config_dict, indent=2)
     result = client.exec(
         sandbox="opencode-dual",
-        command=["sh", "-c", "cat > /sandbox/.config/opencode/config.json << EOFCFG\n" + config_json + "\nEOFCFG"],
+        command=["sh", "-c", "cat > /sandbox/.config/opencode/config.json << 'EOFCFG'\n" + config_json + "\nEOFCFG"],
         workspace="default",
         timeout_seconds=10,
         no_login_shell=True
