@@ -28,9 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create venv with Python 3.12 and install semgrep/bandit
+# Note: Use setuptools<70 because newer versions removed pkg_resources which semgrep needs
 RUN python3.12 -m venv /opt/scantools \
     && /opt/scantools/bin/pip install --no-cache-dir \
-        setuptools \
+        'setuptools<70' \
         requests==2.32.3 \
         gitpython==3.1.43 \
         semgrep==1.85.0 \
