@@ -341,32 +341,38 @@ try:
         print(f"ERROR: {result.stderr}")
         sys.exit(1)
 
-    # 4. Write OpenCode config using json.dumps
+    # 4. Write OpenCode config - write directly using Python, no heredoc
     print("Writing OpenCode config...")
-    config_dict = {
-        "$schema": "https://opencode.ai/config.json",
-        "model": "nemotron/nemotron-30b-vulkan",
-        "autoupdate": False,
-        "share": "disabled",
-        "plugin": [],
-        "provider": {
-            "nemotron": {
-                "npm": "@ai-sdk/openai-compatible",
-                "name": "Nemotron (vLLM)",
-                "options": {
-                    "baseURL": "{env:OPENAI_BASE_URL}",
-                    "apiKey": "{env:OPENAI_API_KEY}"
-                },
-                "models": {
-                    "nemotron-30b-vulkan": {}
-                }
+    result = client.exec(
+        sandbox="opencode-dual",
+        command=["python3", "-c", """
+import json
+config = {
+    "dollar_schema": "https://opencode.ai/config.json",
+    "model": "nemotron/nemotron-30b-vulkan",
+    "autoupdate": False,
+    "share": "disabled",
+    "plugin": [],
+    "provider": {
+        "nemotron": {
+            "npm": "@ai-sdk/openai-compatible",
+            "name": "Nemotron (vLLM)",
+            "options": {
+                "baseURL": "{env:OPENAI_BASE_URL}",
+                "apiKey": "{env:OPENAI_API_KEY}"
+            },
+            "models": {
+                "nemotron-30b-vulkan": {}
             }
         }
     }
-    config_json = json.dumps(config_dict, indent=2)
-    result = client.exec(
-        sandbox="opencode-dual",
-        command=["sh", "-c", "cat > /sandbox/.config/opencode/config.json << 'EOFCFG'\n" + config_json + "\nEOFCFG"],
+}
+# Replace dollar_schema with $schema
+config_str = json.dumps(config, indent=2)
+config_str = config_str.replace('"dollar_schema"', '"$schema"')
+with open("/sandbox/.config/opencode/config.json", "w") as f:
+    f.write(config_str)
+"""],
         workspace="default",
         timeout_seconds=10,
         no_login_shell=True
