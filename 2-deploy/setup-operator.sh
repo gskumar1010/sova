@@ -258,15 +258,32 @@ sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
     "${SCRIPT_DIR}/openshell-sandbox.yaml" \
     | oc apply -f -
 
-# --- 10. Stage files in sandbox using OpenShell API ---
+# --- 10. Wait for sandbox and UI to be ready ---
+
+info "Waiting for sandbox to be ready..."
+for _ in $(seq 1 60); do
+    PHASE=$(oc get openshellsandbox opencode-dual -n "${NAMESPACE}" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+    if [ "$PHASE" = "Ready" ]; then
+        info "✓ Sandbox is ready"
+        break
+    fi
+    sleep 2
+done
+
+if [ "$PHASE" != "Ready" ]; then
+    warn "Sandbox not ready (phase: ${PHASE}), file staging may fail"
+fi
+
+# Wait for sova-dashboard-ui to be ready (it has the openshell Python package)
+info "Waiting for SOVA dashboard UI..."
+oc wait --for=condition=Available deployment/sova-dashboard-ui \
+    -n "${NAMESPACE}" --timeout=60s >/dev/null 2>&1 || warn "Dashboard UI not ready"
+
+# --- 11. Stage files in sandbox using OpenShell API ---
 # Use the OpenShell Python API via the sova-dashboard-ui pod to stage files.
 # This avoids fragile pod-finding logic and works regardless of OpenShell's pod naming.
 
 info "Staging files in sandbox using OpenShell API..."
-
-# Wait for sova-dashboard-ui to be ready (it has the openshell Python package)
-oc wait --for=condition=Available deployment/sova-dashboard-ui \
-    -n "${NAMESPACE}" --timeout=60s >/dev/null 2>&1 || warn "Dashboard UI not ready"
 
 # Create a Python script to stage files via OpenShell API
 cat > /tmp/stage_sandbox_files.py <<'EOF'
@@ -378,13 +395,19 @@ if __name__ == '__main__':
 EOF
 
 # Execute the staging script via sova-dashboard-ui pod
-if oc exec -n "${NAMESPACE}" deployment/sova-dashboard-ui -- python3 - < /tmp/stage_sandbox_files.py; then
-    info "✓ Files staged successfully in sandbox"
+info "Executing file staging script..."
+if oc exec -n "${NAMESPACE}" deployment/sova-dashboard-ui -- python3 - < /tmp/stage_sandbox_files.py 2>&1 | tee /tmp/staging_output.log; then
+    if grep -q "All files staged successfully" /tmp/staging_output.log; then
+        info "✓ Files staged successfully in sandbox"
+    else
+        warn "Staging script ran but verification failed - check output above"
+    fi
 else
-    warn "Failed to stage files in sandbox - manual staging may be required"
+    warn "Failed to execute staging script - manual staging may be required"
+    warn "Check logs: /tmp/staging_output.log"
 fi
 
-rm -f /tmp/stage_sandbox_files.py
+rm -f /tmp/stage_sandbox_files.py /tmp/staging_output.log
 
 # --- Done ---
 

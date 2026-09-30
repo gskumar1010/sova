@@ -41,6 +41,32 @@ fi
 mkdir -p /sandbox/tmp
 echo "[startup] ✓ Created /sandbox/tmp directory"
 
+# Create OpenCode configuration
+mkdir -p /sandbox/.config/opencode
+cat > /sandbox/.config/opencode/config.json <<'EOFCONFIG'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "nemotron/nemotron-30b-vulkan",
+  "autoupdate": false,
+  "share": "disabled",
+  "plugin": [],
+  "provider": {
+    "nemotron": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Nemotron (vLLM)",
+      "options": {
+        "baseURL": "{env:OPENAI_BASE_URL}",
+        "apiKey": "{env:OPENAI_API_KEY}"
+      },
+      "models": {
+        "nemotron-30b-vulkan": {}
+      }
+    }
+  }
+}
+EOFCONFIG
+echo "[startup] ✓ Created OpenCode config"
+
 echo "[startup] File staging complete"
 
 # Execute original entrypoint with all arguments
