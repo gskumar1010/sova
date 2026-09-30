@@ -289,6 +289,7 @@ import json
 
 client = SandboxClient(endpoint="openshell-kata:8080", tls=None, bearer_token=None, timeout=60.0)
 
+try:
     # 1. Create directories
     print("Creating directories...")
     result = client.exec(
