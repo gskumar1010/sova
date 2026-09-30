@@ -1,8 +1,12 @@
+#!/opt/scantools/bin/python3
 # app/agent_tools/vuln_scan.py
 """Vulnerability scanning CLI used by the sandboxed OpenCode agent.
 
 Calls the Vulnerability Orchestrator API and manages git cloning.
 Network egress is governed by OpenShell policy proxy.
+
+IMPORTANT: This script must be run with Python 3.12 from /opt/scantools/bin/python3
+because the base sandbox has Python 3.14 which is incompatible with semgrep dependencies.
 """
 import argparse
 import json

@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create venv with Python 3.12 and install semgrep/bandit
 RUN python3.12 -m venv /opt/scantools \
     && /opt/scantools/bin/pip install --no-cache-dir \
+        setuptools \
         requests==2.32.3 \
         gitpython==3.1.43 \
         semgrep==1.85.0 \
