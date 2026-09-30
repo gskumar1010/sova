@@ -129,6 +129,9 @@ class AgentResult:
 
 def run_agent(prompt: str) -> AgentResult:
     """Execute the vulnerability scanning agent using OpenShell Python API."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         from openshell.sandbox import SandboxClient
     except ImportError as e:
@@ -138,6 +141,8 @@ def run_agent(prompt: str) -> AgentResult:
     gateway_endpoint = os.environ.get("OPENSHELL_GATEWAY_ENDPOINT", "http://openshell-kata:8080")
     timeout = int(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "120"))
     workspace = os.environ.get("OPENSHELL_WORKSPACE", "default")
+
+    logger.info(f"run_agent: sandbox={sandbox_name}, timeout={timeout}s, prompt_len={len(prompt)}")
 
     # Parse gateway endpoint (format: http://host:port or https://host:port)
     # Extract host:port for gRPC connection
@@ -170,9 +175,24 @@ def run_agent(prompt: str) -> AgentResult:
         stderr = result.stderr if result.stderr else ""
         raw = stdout + stderr
 
+        logger.info(f"Agent completed: exit_code={result.exit_code}, stdout_len={len(stdout)}, stderr_len={len(stderr)}")
+
+        # Check exit code - if non-zero, prepend error message
+        if result.exit_code != 0:
+            error_msg = f"⚠️ OpenCode exited with code {result.exit_code}\n\n"
+            if result.exit_code == 124:
+                error_msg += "**Agent timed out** (exceeded 10 minute limit)\n\n"
+            elif result.exit_code == 1:
+                error_msg += "**Agent encountered an error**\n\n"
+            raw = error_msg + raw
+
         # Check for blocking
         blocked = bool(BLOCKED_RE.search(raw))
         text = _clean(stdout) if stdout.strip() else _clean(raw)
+
+        # If cleaned text is empty but we have raw output, use raw
+        if not text.strip() and raw.strip():
+            text = f"**Debug: Cleaned output was empty, showing raw output:**\n\n{raw[:2000]}"
 
         # Try to extract SARIF data if present in output
         sarif_data = None

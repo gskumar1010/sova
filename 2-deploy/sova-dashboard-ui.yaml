@@ -38,10 +38,10 @@ spec:
             # auth.mode=none (no TLS, no authentication required).
             - name: OPENSHELL_GATEWAY_ENDPOINT
               value: http://openshell-kata:8080
-            # Vulnerability scanning can take several minutes for large repos;
-            # give exec generous timeout headroom.
+            # Vulnerability scanning timeout. Set to 3 minutes for faster feedback.
+            # Increase if scanning very large repositories.
             - name: OPENSHELL_EXEC_TIMEOUT
-              value: "600"
+              value: "180"
           readinessProbe:
             httpGet:
               path: /
