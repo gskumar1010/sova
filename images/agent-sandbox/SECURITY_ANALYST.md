@@ -161,9 +161,9 @@ Count total vulnerabilities:
 jq '.runs[0].results | length' semgrep.sarif
 ```
 
-Count by severity:
+Count by severity (map results to rule severity levels):
 ```bash
-jq '[.runs[0].results[].level] | group_by(.) | map({(.[0]): length}) | add' semgrep.sarif
+jq '(.runs[0].tool.driver.rules | map({(.id): .defaultConfiguration.level}) | add) as $rule_levels | .runs[0].results | map($rule_levels[.ruleId]) | group_by(.) | map({(.[0]): length}) | add' semgrep.sarif
 ```
 
 Extract top 10 critical/high only:
