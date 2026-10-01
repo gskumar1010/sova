@@ -161,6 +161,8 @@ spec:
         - path: /sandbox/.venv/bin/pip3
         - path: /sandbox/.venv/bin/pip
         - path: /sandbox/.uv/python/cpython-3.14.3-linux-x86_64-gnu/bin/python3.14
+        # Python 3.12 system binary (used by semgrep internally)
+        - path: /usr/bin/python3.12
         # Python 3.12 venv for semgrep/bandit
         - path: /opt/scantools/bin/python3
         - path: /opt/scantools/bin/python3.12
