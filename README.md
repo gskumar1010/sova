@@ -8,7 +8,8 @@ Deploy AI-powered vulnerability scanning with defense-in-depth using NVIDIA Open
 - [Business Use Case](#business-use-case)
 - [Architecture](#architecture)
 - [Requirements](#requirements)
-- [Deploy](#deploy)
+- [Quick Start](#quick-start)
+- [Deployment Guide](#deployment-guide)
 - [Delete](#delete)
 - [Security Model](#security-model)
 - [References](#references)
@@ -42,25 +43,32 @@ neither technology addresses alone.
 ## Business Use Case
 
 This quickstart deploys **SOVA (Sovereign Vulnerability Analysis Agent)**: an enterprise-grade,
-privacy-first vulnerability scanning platform with a chat UI where users submit Git repository URLs
-and receive comprehensive security analysis dashboards with SARIF-formatted vulnerability reports.
+privacy-first vulnerability scanning platform where users submit Git repository URLs and receive
+comprehensive security analysis with SARIF-formatted vulnerability reports.
 
-The agent performs AI-powered security analysis by orchestrating industry-standard scanning tools
-(Semgrep, Bandit, Safety) and provides severity metrics, CWE classifications, and actionable
-remediation guidance.
+**Key Features:**
+- **Sandboxed Scanning:** Analyzes untrusted code safely inside Kata VM + OpenShell boundary
+- **Industry-Standard Tools:** Integrates Semgrep, Bandit for SAST analysis
+- **Multi-Ruleset Coverage:** p/security-audit, p/python, p/owasp-top-ten (694 total rules)
+- **AI-Assisted Triage:** OpenCode agent formats results and extracts severity metrics
+- **SARIF Compliance:** Structured vulnerability reports with CWE classifications
+- **Network Isolation:** Policy-enforced egress control prevents data exfiltration
 
-SOVA runs inside a **dual-protection boundary**: OpenShell restricts network egress to only the
-vulnerability orchestrator API and model endpoint, while Kata provides hardware VM isolation.
-When analyzing potentially malicious repositories or handling prompt injections, the security
-boundary prevents data exfiltration - demonstrably enforced and visible in the UI.
+**When to Use SOVA:**
+- ✅ Scanning untrusted open-source dependencies
+- ✅ Analyzing code from external contributors
+- ✅ Compliance scenarios requiring isolation (SOC2, PCI-DSS)
+- ✅ Supply chain security (scanning all npm/pip dependencies)
+- ✅ Bug bounty submissions from unknown researchers
 
-*Example: Vulnerability dashboard showing SARIF findings with severity breakdown*
+**When to Use Direct Semgrep/Bandit:**
+- ✅ Scanning your own trusted code
+- ✅ CI/CD integration (GitHub Actions, GitLab CI)
+- ✅ Quick local development iteration
 
-> **Note:** The UI drives the real sandboxed agent via `openshell sandbox exec ... opencode run`,
-> so vulnerability reports come from the orchestrator API through the OpenShell + Kata boundary.
-> The blocked-egress banner reflects a real `policy_denied` from the egress proxy when malicious
-> repositories attempt data exfiltration. The UI image bundles the `openshell` CLI for this.
-> The same boundary is verified headlessly by the [Phase 3 demo](3-demo/README.md).
+SOVA runs inside a **dual-protection boundary**: OpenShell restricts network egress to only
+semgrep.dev, github.com, and the model endpoint, while Kata provides hardware VM isolation.
+When analyzing potentially malicious repositories, the security boundary prevents data exfiltration.
 
 ## Architecture
 
@@ -73,26 +81,30 @@ graph TB
 
     subgraph cluster["OpenShift Cluster · Namespace: openshell-kata"]
         gw["OpenShell Gateway<br/><i>StatefulSet</i>"]
-        vulnapi["Vulnerability Orchestrator<br/><i>FastAPI + Semgrep/Bandit/Safety</i>"]
 
         subgraph kata_vm["Kata VM · hardware-isolated · guest kernel"]
             subgraph sandbox["OpenShell Sandbox"]
-                agent["Security Analyst Agent<br/><i>OpenCode + Gemma</i>"]
+                agent["Security Analyst Agent<br/><i>OpenCode</i>"]
                 proxy["Egress Proxy<br/><i>deny-all default</i>"]
                 landlock["Landlock FS Policy"]
+                tools["Scanning Tools<br/><i>Semgrep, Bandit</i>"]
             end
         end
     end
 
-    model["Model Endpoint<br/><i>Gemma via OpenShift AI</i>"]
+    model["Model Endpoint<br/><i>OpenAI-compatible</i>"]
     blocked["Blocked"]
+    semgrep_registry["semgrep.dev<br/><i>rule registry</i>"]
+    github["github.com<br/><i>git clone</i>"]
 
     user -.-> vulnui
     vulnui --> gw
     gw -- "lifecycle + policy" --> sandbox
+    agent --> tools
     agent --> proxy
     proxy -- "allowed" --> model
-    proxy -- "allowed" --> vulnapi
+    proxy -- "allowed" --> semgrep_registry
+    proxy -- "allowed" --> github
     proxy -. "denied" .-> blocked
 
     style kata_vm fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -101,7 +113,8 @@ graph TB
     style blocked fill:#ffcdd2,stroke:#c62828,color:#c62828
     style model fill:#f3e5f5,stroke:#7b1fa2
     style vulnui fill:#e0f7fa,stroke:#00838f
-    style vulnapi fill:#f3e5f5,stroke:#7b1fa2
+    style semgrep_registry fill:#f3e5f5,stroke:#7b1fa2
+    style github fill:#f3e5f5,stroke:#7b1fa2
 ```
 
 **Components:**
@@ -110,18 +123,17 @@ graph TB
   its own guest kernel, enforced by CPU virtualization (VT-x/AMD-V).
   Kernel exploits stay contained within the VM boundary.
 - **OpenShell Sandbox** (orange) - The security analyst agent runs under an egress proxy
-  (deny-all default; only the model endpoint and the vulnerability orchestrator API are
-  allowed) and Landlock filesystem policy (kernel-enforced path restrictions).
+  (deny-all default; only the model endpoint, semgrep.dev, and github.com are allowed)
+  and Landlock filesystem policy (kernel-enforced path restrictions).
 - **OpenShell Gateway** - StatefulSet managing sandbox lifecycle, policy
   distribution, and JWT authentication.
 - **SOVA Dashboard UI** - A Streamlit web application, exposed via an OpenShift Route,
-  that accepts Git repository URLs and displays vulnerability analysis dashboards. It sends
-  scanning prompts to the agent through the gateway and visualizes SARIF results.
-- **Vulnerability Orchestrator API** - A FastAPI service that orchestrates security scanning
-  tools (Semgrep, Bandit, Safety), manages scan lifecycle with SQLite, and generates
-  SARIF 2.1.0 compliant reports. This is the primary business endpoint the agent calls.
-- **External Model Endpoint** - Gemma model served via OpenShift AI (vLLM). The agent uses
-  this for analyzing scan results and generating remediation guidance. Not deployed by this quickstart.
+  that accepts Git repository URLs and displays vulnerability analysis dashboards.
+- **Scanning Tools** - Semgrep (SAST with 694 rules across p/security-audit, p/python,
+  p/owasp-top-ten) and Bandit (Python-specific security analysis) run inside the sandbox.
+- **External Model Endpoint** - Any OpenAI-compatible model (e.g., IBM Granite via OpenShift AI,
+  Gemma, or hosted OpenAI). The agent uses this for analyzing scan results and generating
+  remediation guidance. Not deployed by this quickstart.
 
 ## Requirements
 
@@ -141,13 +153,62 @@ graph TB
 | `openshell-gateway` binary | latest |
 | Helm | 3.x |
 | `oc` CLI | matching cluster version |
+| `podman` | latest |
 
 ### Additional Requirements
 
 - An **OpenAI-compatible model endpoint**. We recommend an open-weight model
   such as **IBM Granite** served via **Red Hat OpenShift AI** (vLLM); any
   OpenAI-compatible endpoint works. Set it in `env.sh` as `MODEL_ENDPOINT`.
-- A **container image registry** you can push to (e.g., Quay.io)
+- A **GitHub Personal Access Token** (for pulling ghcr.io images if using private images)
+
+## Quick Start
+
+Complete deployment from clone to running agent:
+
+```bash
+# 1. Clone repository and configure environment
+git clone https://github.com/gskumar1010/sova.git
+cd sova
+cp env.sh.example env.sh
+# Edit env.sh: Set MODEL_ENDPOINT and OPENAI_API_KEY
+
+# 2. Login to cluster and enable image registry
+oc login <your-cluster-api-url>
+oc patch configs.imageregistry.operator.openshift.io/cluster \
+  --patch '{"spec":{"defaultRoute":true}}' --type=merge
+
+export REGISTRY=$(oc get route default-route -n openshift-image-registry \
+  -o jsonpath='{.spec.host}')
+podman login -u $(oc whoami) -p $(oc whoami -t) ${REGISTRY} --tls-verify=false
+
+# 3. Install Kata Containers runtime (requires cluster-admin, 10-20 min)
+./1-infra/setup.sh
+# Note: May need to rerun after 20 seconds if kata operator is not ready
+
+# 4. Create namespace and image pull secret
+source env.sh
+oc create namespace ${NAMESPACE}
+oc create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io \
+  --docker-username=<github-username> \
+  --docker-password=<github-pat> \
+  -n openshell-kata
+
+# 5. Deploy OpenShell operator and SOVA components
+./2-deploy/install-openshell-operator.sh
+./2-deploy/setup-operator.sh
+
+# 6. Verify deployment
+oc get openshellpolicy,openshellprovider,openshellsandbox -n ${NAMESPACE}
+oc get pods -n ${NAMESPACE}
+
+# 7. Access SOVA Dashboard UI
+oc get route sova-dashboard-ui -n ${NAMESPACE} -o jsonpath='{.spec.host}'
+# Open the URL in your browser and submit a Git repository URL to scan
+```
+
+For detailed step-by-step instructions, see the [Deployment Guide](#deployment-guide) below.
 
 ## Deploy
 

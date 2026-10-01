@@ -18,6 +18,31 @@ It requires cluster-admin privileges and will cause worker nodes to reboot.
 - OpenShift 4.17+ cluster with bare-metal worker nodes
 - Hardware virtualization support (Intel VT-x / AMD-V)
 - `oc` CLI logged in with cluster-admin privileges
+- `podman` installed (for image builds in Phase 2)
+
+### Initial Setup
+
+Before starting Phase 1, configure your environment:
+
+```bash
+# 1. Clone repository and configure environment variables
+git clone https://github.com/gskumar1010/sova.git
+cd sova
+cp env.sh.example env.sh
+# Edit env.sh: Set MODEL_ENDPOINT and OPENAI_API_KEY
+
+# 2. Login to your OpenShift cluster
+oc login <your-cluster-api-url>
+
+# 3. Enable the internal image registry route (required for Phase 2 image builds)
+oc patch configs.imageregistry.operator.openshift.io/cluster \
+  --patch '{"spec":{"defaultRoute":true}}' --type=merge
+
+# 4. Login to the internal registry with podman
+export REGISTRY=$(oc get route default-route -n openshift-image-registry \
+  -o jsonpath='{.spec.host}')
+podman login -u $(oc whoami) -p $(oc whoami -t) ${REGISTRY} --tls-verify=false
+```
 
 ## Deploy
 
@@ -29,6 +54,15 @@ It requires cluster-admin privileges and will cause worker nodes to reboot.
 
 The script applies all manifests, waits for readiness, patches the
 initramfs, and runs verification.
+
+**Note:** If the script fails with "subscription not found", the operator may need
+a few seconds to initialize. Wait 20 seconds and rerun:
+
+```bash
+# If setup.sh fails, wait and retry
+sleep 20
+./1-infra/setup.sh
+```
 
 ### Option B: Manual
 

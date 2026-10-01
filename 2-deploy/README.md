@@ -12,32 +12,37 @@ SOVA dashboard UI, and creates a dual-protection security analyst sandbox
 - [Phase 1](../1-infra/README.md) complete (Kata installed)
 - `oc` CLI logged in
 - `helm` v3 installed
+- `podman` installed
 - **Cluster admin access** (for operator installation - one-time)
-- Container images built and pushed:
-  ```bash
-  source env.sh
+- Internal image registry configured (see Phase 1 Initial Setup)
 
-  # Create namespace and ghcr-pull secret
-  oc create namespace ${NAMESPACE}
-  oc create secret docker-registry ghcr-pull \
-    --docker-server=ghcr.io \
-    --docker-username=<github-username> \
-    --docker-password=<github-pat> \
-    -n ${NAMESPACE}
+### Create Namespace and Secrets
 
-  # Agent sandbox with security analyst persona
-  podman build --platform linux/amd64 -f images/agent-sandbox/Dockerfile \
-    -t ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest .
-  podman push ${REGISTRY}/${NAMESPACE}/openshell-kata-agent-sandbox:latest
+Before deploying SOVA, create the target namespace and image pull secret:
 
-  ```
+```bash
+source env.sh
 
-  **Note:** The `setup-operator.sh` script will build and push the orchestrator and UI
-  images automatically unless you set `SKIP_BUILD=1`.
+# Create namespace
+oc create namespace ${NAMESPACE}
+
+# Create GitHub Container Registry pull secret (if using ghcr.io images)
+oc create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io \
+  --docker-username=<github-username> \
+  --docker-password=<github-pat> \
+  -n openshell-kata
+```
+
+**Note:** The `setup-operator.sh` script will automatically build and push all required
+images (agent-sandbox, vuln-orchestrator-api, sova-dashboard-ui) to your cluster's internal
+registry unless you set `SKIP_BUILD=1`.
 
 ## Deploy
 
 ### Step 1: Install OpenShell Kubernetes Operator (One-time, Cluster-wide)
+
+**Important:** Ensure you've created the namespace and ghcr-pull secret first (see Prerequisites above).
 
 ```bash
 source env.sh
