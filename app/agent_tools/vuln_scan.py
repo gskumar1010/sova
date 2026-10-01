@@ -79,32 +79,47 @@ def clone_repo(git_url: str, dest: str) -> dict:
 
 
 def run_semgrep_scan(path: str, output: str) -> dict:
-    """Execute Semgrep locally in the sandbox."""
+    """Execute Semgrep locally in the sandbox with multiple rulesets."""
     try:
         # Download semgrep rules locally first (semgrep Python requests can't access registry,
         # but curl can due to OpenShell policy allowing /usr/bin/curl)
-        rules_file = "/tmp/semgrep-rules.yaml"
 
-        # Download security-audit rules
-        download_result = subprocess.run(
-            ["curl", "-sL", "https://semgrep.dev/c/p/security-audit", "-o", rules_file],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
+        # Download multiple rulesets for comprehensive coverage
+        rulesets = [
+            ("https://semgrep.dev/c/p/security-audit", "/tmp/semgrep-security-audit.yaml"),
+            ("https://semgrep.dev/c/p/python", "/tmp/semgrep-python.yaml"),
+            ("https://semgrep.dev/c/p/owasp-top-ten", "/tmp/semgrep-owasp.yaml"),
+        ]
 
-        if download_result.returncode != 0:
-            return {"error": f"Failed to download semgrep rules: {download_result.stderr}"}
+        downloaded_rules = []
+        for url, filepath in rulesets:
+            download_result = subprocess.run(
+                ["curl", "-sL", url, "-o", filepath],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
 
-        # Run semgrep with local rules
+            if download_result.returncode == 0 and os.path.exists(filepath):
+                downloaded_rules.append(filepath)
+            # Continue even if one ruleset fails to download
+
+        if not downloaded_rules:
+            return {"error": "Failed to download any semgrep rulesets"}
+
+        # Run semgrep with all downloaded rulesets
         cmd = [
             "/opt/scantools/bin/semgrep",
-            f"--config={rules_file}",
             "--sarif",
             f"--output={output}",
             "--metrics=off",
-            path
         ]
+
+        # Add all downloaded rule configs
+        for rule_file in downloaded_rules:
+            cmd.append(f"--config={rule_file}")
+
+        cmd.append(path)
 
         result = subprocess.run(
             cmd,
