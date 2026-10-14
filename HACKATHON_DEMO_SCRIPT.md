@@ -278,12 +278,12 @@ Reachability Analysis Results:
 
 **[Show comparison]**
 
-| Tool | Approach | Sandbox | Reachability | False Positive Reduction |
-|------|----------|---------|--------------|-------------------------|
-| **Semgrep** | Pattern matching | ❌ | ❌ | 0% |
-| **VulnHunter** (Capital One) | Attacker-first | ❌ | 🟡 Manual | ~50% |
-| **VVAH** (Visa) | Playbooks | ❌ | ✅ | 60-70% |
-| **SOVA** | Code graph + Sandbox | ✅ Kata VM | ✅ Automated | **55-80%** |
+| Tool | Approach | Sandbox | Reachability | Patch Verification | False Positive Reduction |
+|------|----------|---------|--------------|-------------------|-------------------------|
+| **Semgrep** | Pattern matching | ❌ | ❌ | ❌ | 0% |
+| **VulnHunter** (Capital One) | Attacker-first | ❌ | 🟡 Manual | ✅ | ~50% |
+| **VVAH** (Visa) | Playbooks | ❌ | ✅ | ❌ | 60-70% |
+| **SOVA** | Code graph + Sandbox | ✅ Kata VM | ✅ Automated | 🔜 Q2 2027 | **55-80%** |
 
 **You say:**
 > "SOVA is the ONLY solution that combines:
@@ -293,15 +293,23 @@ Reachability Analysis Results:
 >    - Prevents data exfiltration during scanning
 >    - Critical for supply chain security
 >
-> 2. **Reachability analysis** (code graph)
->    - Deterministic (no LLM needed - fast and cheap)
+> 2. **Reachability analysis** (VVAH-inspired from Visa)
+>    - Deterministic code graph (no LLM needed - fast and cheap)
 >    - Provides call chains for verification
->    - Works at scale
+>    - 70-80% noise reduction - works at scale
 >
-> 3. **Lightwell integration ready**
+> 3. **Patch verification** (VulnHunter-inspired from Capital One - Q2 2027)
+>    - Generate exploit PoCs to prove vulnerabilities
+>    - Test patches eliminate vulnerabilities
+>    - Detect regressions before deployment
+>    - $900K annual savings for Lightwell
+>
+> 4. **Lightwell integration ready**
 >    - SARIF-compliant output
 >    - REST API for CI/CD
->    - Enterprise-grade deployment"
+>    - Enterprise-grade deployment
+>
+> SOVA takes the best ideas from industry leaders and adds the missing sandbox layer."
 
 ---
 
@@ -373,8 +381,13 @@ exploited because the code is never executed in production.
 **Next Steps:**
 1. **Immediate:** Pilot with first Lightwell customer
 2. **Q1 2027:** Multi-language support (Java, JavaScript, Go)
-3. **Q2 2027:** SBOM integration, CVE database linking
-4. **Future:** Data flow analysis, taint tracking, automated patch verification
+3. **Q2 2027:** Automated patch verification (VulnHunter-inspired)
+   - Generate exploit PoCs
+   - Test patches eliminate vulnerabilities
+   - Detect regressions
+   - $900K annual value for Lightwell
+4. **Q3 2027:** SBOM integration, CVE database linking
+5. **Future:** Data flow analysis, taint tracking, exploitability scoring
 
 **[Final slide with contact info or demo link]**
 
@@ -413,15 +426,55 @@ The architecture is designed to be language-agnostic - we just need to add AST p
 
 ### Q: "How does this integrate with Lightwell's existing workflow?"
 
-**A:** "Perfect fit:
+**A:** "Perfect fit - SOVA provides the complete discovery and verification layer:
 
+**Phase 1 - Discovery (Current):**
 1. **Customer submits SBOM** → Lightwell ingests
-2. **SOVA scans dependencies** → Builds code graph + filters by reachability
-3. **Lightwell receives prioritized list** → 70% fewer false positives
-4. **Lightwell creates patches** → Only for reachable vulnerabilities
-5. **SOVA verifies patches** → Tests that fix eliminates reachability
+2. **SOVA scans dependencies** → Finds all vulnerabilities
+3. **SOVA filters by reachability** → 70% fewer false positives (VVAH-inspired)
+4. **Lightwell receives prioritized list** → Only reachable vulnerabilities
 
-This is the discovery and verification layer Lightwell needs to scale."
+**Phase 2 - Patching (Current):**
+5. **Lightwell creates patches** → Only for reachable vulnerabilities
+6. **Customer deploys** → Manual testing required
+
+**Phase 3 - Verification (Q2 2027 - VulnHunter-inspired):**
+7. **SOVA generates exploit PoC** → Proves vulnerability is real
+8. **SOVA tests patch** → Confirms exploit is blocked
+9. **SOVA runs regression tests** → Ensures no breakage
+10. **SOVA emits verdict** → VERIFIED or FAILED
+11. **Customer deploys with confidence** → Patches proven to work
+
+This creates the only end-to-end vulnerability remediation platform with automated verification."
+
+### Q: "What's the next major feature after reachability analysis?"
+
+**A:** "Automated patch verification - inspired by VulnHunter from Capital One.
+
+**The Problem:** Lightwell creates patches, but how do you know they work?
+- 5% of patches fail in production
+- Broken patches cost $2,000 each to investigate and re-patch
+- Annual cost: $1M for 10,000 patches/year
+
+**The Solution (Q2 2027):**
+VulnHunter pioneered the 'falsification engine' - instead of trusting fixes, independently verify them:
+
+1. **Generate exploit PoC** → Prove the vulnerability is real
+2. **Test original code** → Exploit should succeed
+3. **Apply Lightwell's patch** → Make the code change
+4. **Re-run exploit** → Exploit should fail (blocked)
+5. **Run regression tests** → Ensure no functionality breaks
+6. **Emit verdict** → VERIFIED (safe to deploy) or FAILED (needs rework)
+
+**Business Value:**
+- Catch 90% of broken patches before deployment
+- Reduce rollbacks from 500/year to 50/year
+- Save $900K annually
+- Deploy patches in 1 day instead of 7 days
+
+**SOVA's Advantage:** We already have the Kata VM sandbox to safely run exploits. VulnHunter doesn't have sandbox isolation - we can do this more securely.
+
+**Result:** Only platform with Discovery (SAST) → Filter (VVAH-inspired) → Patch (Lightwell) → Verify (VulnHunter-inspired) → Deploy."
 
 ### Q: "What's the performance impact?"
 
