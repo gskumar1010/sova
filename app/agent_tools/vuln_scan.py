@@ -15,9 +15,17 @@ import sys
 import subprocess
 import shlex
 from pathlib import Path
+from typing import Optional
 
 import requests
 import git
+
+# Import code graph functionality
+try:
+    from code_graph import build_graph_cli, analyze_reachability_cli
+    CODE_GRAPH_AVAILABLE = True
+except ImportError:
+    CODE_GRAPH_AVAILABLE = False
 
 # Port 8080 is required: the OpenShell egress policy allowlists
 # vuln-orchestrator-api:8080 exactly. Any other port is denied.
@@ -219,6 +227,134 @@ def submit_report(scan_id: str, sarif_path: str) -> dict:
         return {"error": f"Report submission failed: {str(e)}"}
 
 
+def filter_sarif_by_reachability(sarif_path: str, graph_path: str, output_path: str) -> dict:
+    """Filter SARIF results by reachability analysis."""
+    try:
+        # Load SARIF
+        with open(sarif_path, 'r') as f:
+            sarif_data = json.load(f)
+
+        # Load code graph
+        with open(graph_path, 'r') as f:
+            graph_dict = json.load(f)
+
+        if not CODE_GRAPH_AVAILABLE:
+            return {"error": "Code graph module not available"}
+
+        from code_graph import CodeGraph, FileNode, ReachabilityAnalyzer
+
+        # Reconstruct CodeGraph
+        files = {
+            path: FileNode(**node_dict)
+            for path, node_dict in graph_dict["files"].items()
+        }
+
+        graph = CodeGraph(
+            files=files,
+            entry_points=graph_dict["entry_points"],
+            import_map=graph_dict["import_map"],
+            function_map=graph_dict["function_map"],
+            call_graph=graph_dict["call_graph"]
+        )
+
+        analyzer = ReachabilityAnalyzer(graph)
+
+        # Filter SARIF results
+        reachable_results = []
+        unreachable_results = []
+        stats = {
+            "total": 0,
+            "reachable": 0,
+            "unreachable": 0,
+            "unknown": 0
+        }
+
+        for run in sarif_data.get("runs", []):
+            filtered_results = []
+
+            for result in run.get("results", []):
+                stats["total"] += 1
+
+                # Extract file path from result
+                locations = result.get("locations", [])
+                if not locations:
+                    # No location info, keep it
+                    filtered_results.append(result)
+                    stats["unknown"] += 1
+                    continue
+
+                loc = locations[0].get("physicalLocation", {})
+                file_path = loc.get("artifactLocation", {}).get("uri", "")
+
+                if not file_path:
+                    filtered_results.append(result)
+                    stats["unknown"] += 1
+                    continue
+
+                # Analyze reachability
+                analysis = analyzer.analyze_vulnerability(file_path)
+
+                if analysis["reachable"]:
+                    # Add reachability annotation to result
+                    if "properties" not in result:
+                        result["properties"] = {}
+                    result["properties"]["reachability"] = {
+                        "reachable": True,
+                        "confidence": analysis["confidence"],
+                        "reason": analysis["reason"],
+                        "call_chain": analysis["call_chain"]
+                    }
+                    filtered_results.append(result)
+                    reachable_results.append(result)
+                    stats["reachable"] += 1
+                else:
+                    # Store in unreachable list for separate report
+                    if "properties" not in result:
+                        result["properties"] = {}
+                    result["properties"]["reachability"] = {
+                        "reachable": False,
+                        "confidence": analysis["confidence"],
+                        "reason": analysis["reason"]
+                    }
+                    unreachable_results.append(result)
+                    stats["unreachable"] += 1
+
+            # Update run with filtered results
+            run["results"] = filtered_results
+
+        # Save filtered SARIF
+        with open(output_path, 'w') as f:
+            json.dump(sarif_data, f, indent=2)
+
+        # Save unreachable findings separately
+        unreachable_path = output_path.replace('.sarif', '_unreachable.sarif')
+        unreachable_sarif = {
+            "version": "2.1.0",
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "runs": [{
+                "tool": sarif_data["runs"][0]["tool"] if sarif_data.get("runs") else {},
+                "results": unreachable_results
+            }]
+        }
+        with open(unreachable_path, 'w') as f:
+            json.dump(unreachable_sarif, f, indent=2)
+
+        return {
+            "status": "success",
+            "output_file": output_path,
+            "unreachable_file": unreachable_path,
+            "stats": stats,
+            "reduction_percentage": round((stats["unreachable"] / stats["total"] * 100) if stats["total"] > 0 else 0, 1)
+        }
+
+    except FileNotFoundError as e:
+        return {"error": f"File not found: {str(e)}"}
+    except json.JSONDecodeError as e:
+        return {"error": f"Invalid JSON: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Filter failed: {str(e)}"}
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Vulnerability scanning toolkit")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -247,6 +383,23 @@ def main(argv=None) -> int:
     p_report.add_argument("--scan-id", required=True, help="Scan ID")
     p_report.add_argument("--sarif", required=True, help="SARIF file path")
 
+    # Build-graph subcommand (NEW - for reachability analysis)
+    p_graph = sub.add_parser("build-graph", help="Build code graph for reachability analysis")
+    p_graph.add_argument("--path", required=True, help="Path to repository")
+    p_graph.add_argument("--output", required=True, help="Output JSON file for graph")
+
+    # Analyze-reachability subcommand (NEW)
+    p_reach = sub.add_parser("analyze-reachability", help="Analyze if vulnerability is reachable")
+    p_reach.add_argument("--graph", required=True, help="Code graph JSON file")
+    p_reach.add_argument("--file", required=True, help="Vulnerable file path")
+    p_reach.add_argument("--function", help="Vulnerable function name (optional)")
+
+    # Filter-sarif subcommand (NEW - filter SARIF by reachability)
+    p_filter = sub.add_parser("filter-sarif", help="Filter SARIF results by reachability")
+    p_filter.add_argument("--sarif", required=True, help="Input SARIF file")
+    p_filter.add_argument("--graph", required=True, help="Code graph JSON file")
+    p_filter.add_argument("--output", required=True, help="Output filtered SARIF file")
+
     args = parser.parse_args(argv)
 
     try:
@@ -260,6 +413,19 @@ def main(argv=None) -> int:
             result = run_safety_scan(args.requirements)
         elif args.command == "report":
             result = submit_report(args.scan_id, args.sarif)
+        elif args.command == "build-graph":
+            if not CODE_GRAPH_AVAILABLE:
+                result = {"error": "Code graph module not available"}
+            else:
+                result = build_graph_cli(args.path, args.output)
+        elif args.command == "analyze-reachability":
+            if not CODE_GRAPH_AVAILABLE:
+                result = {"error": "Code graph module not available"}
+            else:
+                result = analyze_reachability_cli(args.graph, args.file,
+                                                  args.function if hasattr(args, 'function') else None)
+        elif args.command == "filter-sarif":
+            result = filter_sarif_by_reachability(args.sarif, args.graph, args.output)
         else:
             result = {"error": f"Unknown command: {args.command}"}
 

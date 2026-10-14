@@ -50,6 +50,7 @@ comprehensive security analysis with SARIF-formatted vulnerability reports.
 - **Sandboxed Scanning:** Analyzes untrusted code safely inside Kata VM + OpenShell boundary
 - **Industry-Standard Tools:** Integrates Semgrep, Bandit for SAST analysis
 - **Multi-Ruleset Coverage:** p/security-audit, p/python, p/owasp-top-ten (694 total rules)
+- **Reachability Analysis:** 🆕 Reduces false positives by 70-80% via code graph analysis (see [docs/REACHABILITY_ANALYSIS.md](docs/REACHABILITY_ANALYSIS.md))
 - **AI-Assisted Triage:** OpenCode agent formats results and extracts severity metrics
 - **SARIF Compliance:** Structured vulnerability reports with CWE classifications
 - **Network Isolation:** Policy-enforced egress control prevents data exfiltration
@@ -60,6 +61,7 @@ comprehensive security analysis with SARIF-formatted vulnerability reports.
 - ✅ Compliance scenarios requiring isolation (SOC2, PCI-DSS)
 - ✅ Supply chain security (scanning all npm/pip dependencies)
 - ✅ Bug bounty submissions from unknown researchers
+- ✅ 🆕 **Lightwell customers:** Automated triage of vulnerabilities with reachability filtering
 
 **When to Use Direct Semgrep/Bandit:**
 - ✅ Scanning your own trusted code
