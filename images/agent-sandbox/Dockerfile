@@ -39,6 +39,7 @@ RUN python3.12 -m venv /opt/scantools \
 
 COPY images/agent-sandbox/opencode.json /home/user/.config/opencode/config.json
 COPY app/agent_tools/vuln_scan.py /home/user/workspace/vuln_scan.py
+COPY app/agent_tools/code_graph.py /home/user/workspace/code_graph.py
 COPY images/agent-sandbox/SECURITY_ANALYST.md /home/user/workspace/SECURITY_ANALYST.md
 COPY images/agent-sandbox/startup.sh /usr/local/bin/startup.sh
 

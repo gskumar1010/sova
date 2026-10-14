@@ -25,6 +25,12 @@ if [ -f "/home/user/workspace/vuln_scan.py" ]; then
     echo "[startup] ✓ Staged vuln_scan.py"
 fi
 
+if [ -f "/home/user/workspace/code_graph.py" ]; then
+    cp -f /home/user/workspace/code_graph.py /sandbox/
+    chmod +x /sandbox/code_graph.py
+    echo "[startup] ✓ Staged code_graph.py"
+fi
+
 if [ -f "/home/user/workspace/SECURITY_ANALYST.md" ]; then
     cp -f /home/user/workspace/SECURITY_ANALYST.md /sandbox/
     echo "[startup] ✓ Staged SECURITY_ANALYST.md"
