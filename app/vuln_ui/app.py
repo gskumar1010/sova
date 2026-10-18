@@ -3,6 +3,8 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import json
+import threading
+import time
 
 from agent_client import run_agent, validate_git_url, parse_sarif
 
@@ -460,14 +462,66 @@ CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
 Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no snippets, no file paths).
 """
         st.session_state.history.append(("user", git_url))
-        with st.spinner("Agent scanning inside Kata VM sandbox..."):
+
+        result_holder: dict = {}
+
+        def _run_scan():
             try:
-                result = run_agent(prompt)
-                st.session_state.history.append(("assistant", result))
-                if result.sarif_data:
-                    st.session_state.current_sarif = result.sarif_data
-            except Exception as e:
-                st.error(f"Agent error: {str(e)}")
+                result_holder["result"] = run_agent(prompt)
+            except Exception as exc:
+                result_holder["error"] = str(exc)
+
+        scan_thread = threading.Thread(target=_run_scan, daemon=True)
+        scan_thread.start()
+
+        def _wait(secs: float) -> bool:
+            """Tick for up to `secs` seconds; return True if thread finished early."""
+            deadline = time.time() + secs
+            while time.time() < deadline:
+                if not scan_thread.is_alive():
+                    return True
+                time.sleep(0.4)
+            return not scan_thread.is_alive()
+
+        STEPS = [
+            ("Cloning repository into sandbox",                           14),
+            ("Semgrep · 694 rules (OWASP · p/python · p/security-audit)", 80),
+            ("Bandit · Python security analysis",                          25),
+            ("AI agent synthesizing findings",                             40),
+        ]
+
+        with st.status("Scanning inside Kata VM sandbox…", expanded=True) as scan_status:
+            placeholders = [st.empty() for _ in STEPS]
+            for i, (label, est) in enumerate(STEPS):
+                placeholders[i].markdown(
+                    f'<span style="color:#64748b;font-size:0.88rem;">⟳ &nbsp;{label}…</span>',
+                    unsafe_allow_html=True,
+                )
+                done = _wait(est)
+                placeholders[i].markdown(
+                    f'<span style="color:#22c55e;font-size:0.88rem;">✓ &nbsp;{label}</span>',
+                    unsafe_allow_html=True,
+                )
+                if done:
+                    for j in range(i + 1, len(STEPS)):
+                        placeholders[j].markdown(
+                            f'<span style="color:#22c55e;font-size:0.88rem;">✓ &nbsp;{STEPS[j][0]}</span>',
+                            unsafe_allow_html=True,
+                        )
+                    break
+
+            scan_thread.join()
+
+            if "error" in result_holder:
+                scan_status.update(label="Scan failed", state="error", expanded=True)
+                st.error(result_holder["error"])
+            else:
+                scan_status.update(label="Scan complete", state="complete", expanded=False)
+                result = result_holder.get("result")
+                if result:
+                    st.session_state.history.append(("assistant", result))
+                    if result.sarif_data:
+                        st.session_state.current_sarif = result.sarif_data
 
 # ── SARIF Dashboard ───────────────────────────────────────────────────────────
 if st.session_state.current_sarif:
