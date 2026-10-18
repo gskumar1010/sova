@@ -5,8 +5,21 @@ import pandas as pd
 import json
 import threading
 import time
+import uuid
+
+import requests as _requests
 
 from agent_client import run_agent, validate_git_url, parse_sarif
+
+ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
+
+
+def _poll_progress(scan_id: str) -> list:
+    try:
+        r = _requests.get(f"{ORCHESTRATOR_URL}/scan/progress/{scan_id}", timeout=3)
+        return r.json().get("events", [])
+    except Exception:
+        return []
 
 st.set_page_config(
     page_title="SOVA — Sovereign Vulnerability Analysis",
@@ -461,56 +474,95 @@ CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
 
 Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no snippets, no file paths).
 """
+        scan_id = str(uuid.uuid4())
         st.session_state.history.append(("user", git_url))
 
         result_holder: dict = {}
 
         def _run_scan():
             try:
-                result_holder["result"] = run_agent(prompt)
+                result_holder["result"] = run_agent(prompt, scan_id=scan_id)
             except Exception as exc:
                 result_holder["error"] = str(exc)
 
         scan_thread = threading.Thread(target=_run_scan, daemon=True)
         scan_thread.start()
 
-        def _wait(secs: float) -> bool:
-            """Tick for up to `secs` seconds; return True if thread finished early."""
-            deadline = time.time() + secs
-            while time.time() < deadline:
-                if not scan_thread.is_alive():
-                    return True
-                time.sleep(0.4)
-            return not scan_thread.is_alive()
+        # Step display config: key → (label, fallback_timeout_secs)
+        STEP_CFG = {
+            "clone":    ("Cloning repository into sandbox",                            60),
+            "semgrep":  ("Semgrep · 694 rules (OWASP · p/python · p/security-audit)", 180),
+            "bandit":   ("Bandit · Python security analysis",                          60),
+            "analysis": ("AI agent synthesizing findings",                              90),
+        }
+        step_keys = list(STEP_CFG.keys())
 
-        STEPS = [
-            ("Cloning repository into sandbox",                           14),
-            ("Semgrep · 694 rules (OWASP · p/python · p/security-audit)", 80),
-            ("Bandit · Python security analysis",                          25),
-            ("AI agent synthesizing findings",                             40),
-        ]
+        def _fmt_running(label):
+            return f'<span style="color:#64748b;font-size:0.88rem;">⟳ &nbsp;{label}…</span>'
+
+        def _fmt_done(label, detail=None):
+            suffix = f' <span style="color:#475569;font-size:0.78rem;">· {detail}</span>' if detail else ""
+            return f'<span style="color:#22c55e;font-size:0.88rem;">✓ &nbsp;{label}{suffix}</span>'
+
+        def _fmt_fail(label, detail=None):
+            suffix = f' <span style="color:#475569;font-size:0.78rem;">· {detail}</span>' if detail else ""
+            return f'<span style="color:#ef4444;font-size:0.88rem;">✗ &nbsp;{label}{suffix}</span>'
 
         with st.status("Scanning inside Kata VM sandbox…", expanded=True) as scan_status:
-            placeholders = [st.empty() for _ in STEPS]
-            for i, (label, est) in enumerate(STEPS):
-                placeholders[i].markdown(
-                    f'<span style="color:#64748b;font-size:0.88rem;">⟳ &nbsp;{label}…</span>',
-                    unsafe_allow_html=True,
-                )
-                done = _wait(est)
-                placeholders[i].markdown(
-                    f'<span style="color:#22c55e;font-size:0.88rem;">✓ &nbsp;{label}</span>',
-                    unsafe_allow_html=True,
-                )
-                if done:
-                    for j in range(i + 1, len(STEPS)):
-                        placeholders[j].markdown(
-                            f'<span style="color:#22c55e;font-size:0.88rem;">✓ &nbsp;{STEPS[j][0]}</span>',
-                            unsafe_allow_html=True,
-                        )
-                    break
+            placeholders = {k: st.empty() for k in step_keys}
+
+            seen: dict = {}   # step -> latest event
+            current_step_idx = 0
+
+            # Show first step as running immediately
+            first_key = step_keys[0]
+            first_label = STEP_CFG[first_key][0]
+            placeholders[first_key].markdown(_fmt_running(first_label), unsafe_allow_html=True)
+
+            deadline = time.time() + sum(t for _, t in STEP_CFG.values()) + 30
+
+            while scan_thread.is_alive() and time.time() < deadline:
+                events = _poll_progress(scan_id)
+                for ev in events:
+                    k = ev["step"]
+                    seen[k] = ev
+
+                for i, key in enumerate(step_keys):
+                    label, _ = STEP_CFG[key]
+                    ev = seen.get(key)
+                    if ev is None:
+                        if i == current_step_idx:
+                            placeholders[key].markdown(_fmt_running(label), unsafe_allow_html=True)
+                        continue
+                    if ev["status"] == "started":
+                        current_step_idx = i
+                        placeholders[key].markdown(_fmt_running(label), unsafe_allow_html=True)
+                        # Mark next step as waiting
+                        if i + 1 < len(step_keys):
+                            nk = step_keys[i + 1]
+                            if nk not in seen:
+                                nl, _ = STEP_CFG[nk]
+                                placeholders[nk].markdown(_fmt_running(nl), unsafe_allow_html=True)
+                    elif ev["status"] == "completed":
+                        placeholders[key].markdown(_fmt_done(label, ev.get("detail")), unsafe_allow_html=True)
+                    elif ev["status"] == "failed":
+                        placeholders[key].markdown(_fmt_fail(label, ev.get("detail")), unsafe_allow_html=True)
+
+                time.sleep(1)
 
             scan_thread.join()
+
+            # Final pass — mark anything not yet shown
+            events = _poll_progress(scan_id)
+            for ev in events:
+                seen[ev["step"]] = ev
+            for key in step_keys:
+                label, _ = STEP_CFG[key]
+                ev = seen.get(key)
+                if ev and ev["status"] == "completed":
+                    placeholders[key].markdown(_fmt_done(label, ev.get("detail")), unsafe_allow_html=True)
+                elif ev and ev["status"] == "failed":
+                    placeholders[key].markdown(_fmt_fail(label, ev.get("detail")), unsafe_allow_html=True)
 
             if "error" in result_holder:
                 scan_status.update(label="Scan failed", state="error", expanded=True)

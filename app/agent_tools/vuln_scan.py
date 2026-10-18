@@ -38,6 +38,24 @@ def base_url() -> str:
     return os.environ.get("VULN_API_URL", DEFAULT_BASE).rstrip("/")
 
 
+def report_progress(step: str, status: str, detail: str = None) -> None:
+    """Fire-and-forget progress ping to the orchestrator."""
+    scan_id = os.environ.get("SCAN_ID", "")
+    if not scan_id:
+        return
+    try:
+        payload = {"step": step, "status": status}
+        if detail:
+            payload["detail"] = detail
+        requests.post(
+            f"{base_url()}/scan/progress/{scan_id}",
+            json=payload,
+            timeout=5,
+        )
+    except Exception:
+        pass  # never fail a scan because of a progress ping
+
+
 def clone_repo(git_url: str, dest: str) -> dict:
     """
     Safely clone a git repository with security constraints.
@@ -404,14 +422,31 @@ def main(argv=None) -> int:
 
     try:
         if args.command == "clone":
+            report_progress("clone", "started")
             result = clone_repo(args.url, args.dest)
+            status = "failed" if "error" in result else "completed"
+            detail = f"{result.get('size_mb', '')} MB · {result.get('commit', '')}" if status == "completed" else result.get("error")
+            report_progress("clone", status, detail)
         elif args.command == "semgrep":
+            report_progress("semgrep", "started")
             result = run_semgrep_scan(args.path, args.output)
+            if "error" in result:
+                report_progress("semgrep", "failed", result["error"])
+            else:
+                count = len(result.get("sarif", {}).get("runs", [{}])[0].get("results", []))
+                report_progress("semgrep", "completed", f"{count} findings")
         elif args.command == "bandit":
+            report_progress("bandit", "started")
             result = run_bandit_scan(args.path, args.output)
+            if "error" in result:
+                report_progress("bandit", "failed", result["error"])
+            else:
+                count = len(result.get("results", {}).get("results", []))
+                report_progress("bandit", "completed", f"{count} findings")
         elif args.command == "safety":
             result = run_safety_scan(args.requirements)
         elif args.command == "report":
+            report_progress("analysis", "completed")
             result = submit_report(args.scan_id, args.sarif)
         elif args.command == "build-graph":
             if not CODE_GRAPH_AVAILABLE:
