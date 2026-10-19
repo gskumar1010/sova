@@ -649,24 +649,100 @@ if st.session_state.current_sarif:
         with col_right:
             if sarif_metrics["findings"]:
                 df = pd.DataFrame(sarif_metrics["findings"])
-                display = df[["severity", "rule_id", "file", "line", "message"]].copy()
-                display.columns = ["Severity", "Rule", "File", "Line", "Message"]
-                st.dataframe(display, use_container_width=True, height=280, hide_index=True)
 
+                # Top 5 rules bar chart
+                rule_counts = (
+                    df.groupby("rule_id")
+                    .agg(count=("rule_id", "count"), severity=("severity", "first"))
+                    .reset_index()
+                    .sort_values("count", ascending=False)
+                    .head(5)
+                )
+                sev_color_map = {
+                    "critical": "#ef4444", "high": "#f97316",
+                    "medium": "#eab308", "low": "#3b82f6",
+                }
+                bar_colors = [sev_color_map.get(s, "#64748b") for s in rule_counts["severity"]]
+
+                bar_fig = go.Figure(go.Bar(
+                    x=rule_counts["count"],
+                    y=rule_counts["rule_id"],
+                    orientation="h",
+                    marker=dict(color=bar_colors, opacity=0.85),
+                    text=rule_counts["count"],
+                    textposition="outside",
+                    textfont=dict(color="#94a3b8", size=11),
+                    hovertemplate="<b>%{y}</b><br>%{x} findings<extra></extra>",
+                ))
+                bar_fig.update_layout(
+                    height=280,
+                    margin=dict(t=10, b=10, l=10, r=40),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, color="#475569"),
+                    yaxis=dict(
+                        color="#94a3b8", tickfont=dict(size=10, family="JetBrains Mono"),
+                        autorange="reversed",
+                    ),
+                    bargap=0.35,
+                )
+                st.plotly_chart(bar_fig, use_container_width=True)
+
+        # ── Findings drill-down ───────────────────────────────────────────────
         st.markdown("""<div class="section-header" style="margin-top:1.25rem">Findings</div>""", unsafe_allow_html=True)
+
+        if "rule_filter" not in st.session_state:
+            st.session_state.rule_filter = "All rules"
+
+        all_rules = sorted(df["rule_id"].unique().tolist())
+        top5_rules = (
+            df["rule_id"].value_counts().head(5).index.tolist()
+        )
+        filter_options = ["All rules"] + top5_rules + [r for r in all_rules if r not in top5_rules]
+
+        selected_rule = st.selectbox(
+            "Filter by rule",
+            filter_options,
+            index=filter_options.index(st.session_state.rule_filter)
+                  if st.session_state.rule_filter in filter_options else 0,
+            label_visibility="collapsed",
+        )
+        st.session_state.rule_filter = selected_rule
+
+        filtered = (
+            sarif_metrics["findings"] if selected_rule == "All rules"
+            else [f for f in sarif_metrics["findings"] if f["rule_id"] == selected_rule]
+        )
+
+        shown = filtered[:20]
+        if selected_rule != "All rules":
+            st.markdown(
+                f'<div style="font-size:0.78rem;color:#475569;margin-bottom:0.5rem;">'
+                f'{len(filtered)} finding{"s" if len(filtered)!=1 else ""} for '
+                f'<code style="color:#00b4ff">{selected_rule}</code></div>',
+                unsafe_allow_html=True,
+            )
 
         sev_cls = {"critical": "sev-crit", "high": "sev-high", "medium": "sev-med", "low": "sev-low"}
         sev_lbl = {"critical": "CRITICAL", "high": "HIGH", "medium": "MEDIUM", "low": "LOW"}
 
-        for finding in sarif_metrics["findings"][:10]:
+        for finding in shown:
             sev = finding["severity"]
-            title = f"{finding['rule_id']} — {finding['file']}:{finding['line']}"
+            title = f"{finding['file']}:{finding['line']}"
             with st.expander(title):
-                st.markdown(
-                    f'<span class="sev-badge {sev_cls.get(sev, "sev-low")}">{sev_lbl.get(sev, sev.upper())}</span>'
-                    f'<span style="color:#64748b;font-size:0.82rem;">via {finding["tool"]}</span>',
-                    unsafe_allow_html=True,
-                )
+                col_a, col_b = st.columns([1, 3])
+                with col_a:
+                    st.markdown(
+                        f'<span class="sev-badge {sev_cls.get(sev, "sev-low")}">'
+                        f'{sev_lbl.get(sev, sev.upper())}</span>',
+                        unsafe_allow_html=True,
+                    )
+                with col_b:
+                    st.markdown(
+                        f'<code style="color:#00b4ff;font-size:0.82rem;">{finding["rule_id"]}</code>'
+                        f'<span style="color:#475569;font-size:0.78rem;"> · via {finding["tool"]}</span>',
+                        unsafe_allow_html=True,
+                    )
                 st.markdown(f"**{finding['message']}**")
                 if finding["snippet"]:
                     st.code(finding["snippet"], language="python")
