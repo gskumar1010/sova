@@ -13,8 +13,6 @@
 
 **Reducing False Positives by 70-80%**
 
-![SOVA Logo](docs/images/architecture.png)
-
 *Deployed on OpenShift | Production Ready | $10M Annual Value*
 
 ---

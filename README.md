@@ -74,8 +74,6 @@ When analyzing potentially malicious repositories, the security boundary prevent
 
 ## Architecture
 
-![Architecture](docs/images/architecture.png)
-
 ```mermaid
 graph TB
     user["User (browser)"]
