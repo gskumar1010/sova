@@ -13,7 +13,7 @@ from agent_client import run_agent, validate_git_url, parse_sarif
 
 st.set_page_config(page_title="SOVA - Vulnerability Scanner", page_icon="🔒", layout="wide")
 
-st.title("🔒 SOVA - Sovereign Vulnerability Analysis Agent")
+st.title("🔒 SOVA - Sovereign Oversight & Vulnerability Agent")
 st.caption(
     "An AI-powered vulnerability scanner running inside a Kata VM under an OpenShell egress policy. "
     "It can reach the vulnerability orchestrator and the model endpoint - nothing else."

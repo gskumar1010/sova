@@ -1,6 +1,6 @@
 # SOVA Transformation Summary
 
-This document tracks the transformation from Travel Agent to SOVA (Sovereign Vulnerability Analysis Agent).
+This document tracks the transformation from Travel Agent to SOVA (Sovereign Oversight & Vulnerability Agent).
 
 ## ✅ Completed Transformations
 

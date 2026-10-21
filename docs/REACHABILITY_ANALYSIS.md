@@ -470,5 +470,5 @@ python3 vuln_scan.py analyze-reachability \
 
 ## License
 
-Part of SOVA - Sovereign Vulnerability Analysis Agent
+Part of SOVA - Sovereign Oversight & Vulnerability Agent
 See main repository LICENSE file

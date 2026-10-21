@@ -641,7 +641,7 @@ Action: FIX IMMEDIATELY
 - **Model:** Any OpenAI-compatible endpoint
 
 ## Contact
-- **Project:** SOVA - Sovereign Vulnerability Analysis
+- **Project:** SOVA - Sovereign Oversight & Vulnerability
 - **Team:** [Your name and team]
 - **Email:** [Your email]
 

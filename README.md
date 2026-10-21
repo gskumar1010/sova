@@ -1,4 +1,4 @@
-# SOVA - Sovereign Vulnerability Analysis Agent
+# SOVA - Sovereign Oversight & Vulnerability Agent
 
 Deploy AI-powered vulnerability scanning with defense-in-depth using NVIDIA OpenShell and Kata Containers on Red Hat OpenShift.
 
@@ -42,7 +42,7 @@ neither technology addresses alone.
 
 ## Business Use Case
 
-This quickstart deploys **SOVA (Sovereign Vulnerability Analysis Agent)**: an enterprise-grade,
+This quickstart deploys **SOVA (Sovereign Oversight & Vulnerability Agent)**: an enterprise-grade,
 privacy-first vulnerability scanning platform where users submit Git repository URLs and receive
 comprehensive security analysis with SARIF-formatted vulnerability reports.
 

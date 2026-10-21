@@ -8,7 +8,7 @@ Requirements
 Use https://github.com/visa/visa-vulnerability-agentic-harness and
 https://github.com/capitalone/vulnhunter repositories extensively and ONLY modify https://github.com/gskumar1010/sova/tree/main/3-demo , https://github.com/gskumar1010/sova/tree/main/app
 https://github.com/gskumar1010/sova/tree/main/images/mock-travel-api, https://github.com/gskumar1010/sova/tree/main/images/travel-ui
-to build a Sovereign Vulnerability Analysis Agent
+to build a Sovereign Oversight & Vulnerability Agent
 
 
 For building the user interface, have the input as a git url and the output needs to be a dashboard with vulnerabilities
@@ -21,7 +21,7 @@ Assume that I will be using Gemma model served with Openshift AI that is hosting
 
 Additional details
 
-Enterprise organizations operating under stringent data privacy and compliance guidelines require secure, on-premise code auditing solutions that do not rely on external platforms. The **Sovereign Vulnerability Analysis Agent** delivers an end-to-end, privacy-first security scanning platform natively deployed on Red Hat OpenShift AI.
+Enterprise organizations operating under stringent data privacy and compliance guidelines require secure, on-premise code auditing solutions that do not rely on external platforms. The **Sovereign Oversight & Vulnerability Agent** delivers an end-to-end, privacy-first security scanning platform natively deployed on Red Hat OpenShift AI.
 
 ### Key Features
 
