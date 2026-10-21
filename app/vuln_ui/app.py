@@ -13,6 +13,43 @@ from agent_client import run_agent, validate_git_url, parse_sarif
 
 ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
 
+# Bandit rule ID → CWE number (most common ones)
+_BANDIT_CWE = {
+    "B102": 78,  "B103": 732, "B104": 605, "B105": 259, "B106": 259,
+    "B107": 259, "B108": 377, "B201": 605, "B301": 502, "B302": 502,
+    "B303": 327, "B304": 327, "B305": 327, "B307": 78,  "B308": 352,
+    "B310": 601, "B311": 338, "B312": 601, "B313": 611, "B314": 611,
+    "B315": 611, "B316": 611, "B317": 611, "B318": 611, "B319": 611,
+    "B320": 611, "B321": 321, "B322": 676, "B323": 295, "B324": 327,
+    "B325": 338, "B401": 326, "B402": 326, "B403": 78,  "B404": 78,
+    "B405": 611, "B406": 611, "B407": 611, "B408": 611, "B409": 611,
+    "B410": 611, "B501": 295, "B502": 326, "B503": 326, "B504": 326,
+    "B505": 326, "B506": 20,  "B507": 295, "B601": 78,  "B602": 78,
+    "B603": 78,  "B604": 78,  "B605": 78,  "B606": 78,  "B607": 78,
+    "B608": 89,  "B609": 78,  "B610": 89,  "B611": 89,  "B701": 94,
+    "B702": 94,  "B703": 94,
+}
+
+
+def _cwe_url(rule_id: str) -> str | None:
+    bid = rule_id.split(".")[-1].upper() if "." in rule_id else rule_id.upper()
+    cwe = _BANDIT_CWE.get(bid)
+    if cwe:
+        return f"https://cwe.mitre.org/data/definitions/{cwe}.html", cwe
+    return None, None
+
+
+def _risk_score(sc: dict) -> int:
+    raw = sc["critical"] * 10 + sc["high"] * 5 + sc["medium"] * 2 + sc["low"]
+    return min(100, raw)
+
+
+def _risk_color(score: int) -> str:
+    if score >= 75: return "#ef4444"
+    if score >= 45: return "#f97316"
+    if score >= 20: return "#eab308"
+    return "#22c55e"
+
 
 def _poll_progress(scan_id: str) -> list:
     try:
@@ -456,6 +493,8 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "current_sarif" not in st.session_state:
     st.session_state.current_sarif = None
+if "scan_duration" not in st.session_state:
+    st.session_state.scan_duration = None
 
 # ── Scan input ────────────────────────────────────────────────────────────────
 st.markdown('<div class="scan-label">Repository URL</div>', unsafe_allow_html=True)
@@ -489,6 +528,8 @@ CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
 Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no snippets, no file paths).
 """
         scan_id = str(uuid.uuid4())
+        _scan_start = time.time()
+        st.session_state.scan_duration = None
         st.session_state.history.append(("user", git_url))
 
         result_holder: dict = {}
@@ -578,11 +619,19 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                 elif ev and ev["status"] == "failed":
                     placeholders[key].markdown(_fmt_fail(label, ev.get("detail")), unsafe_allow_html=True)
 
+            elapsed = time.time() - _scan_start
+            mins, secs = divmod(int(elapsed), 60)
+            duration_str = f"{mins}m {secs}s" if mins else f"{secs}s"
+
             if "error" in result_holder:
                 scan_status.update(label="Scan failed", state="error", expanded=True)
                 st.error(result_holder["error"])
             else:
-                scan_status.update(label="Scan complete", state="complete", expanded=False)
+                scan_status.update(
+                    label=f"Scan complete · {duration_str}",
+                    state="complete", expanded=False,
+                )
+                st.session_state.scan_duration = duration_str
                 result = result_holder.get("result")
                 if result:
                     st.session_state.history.append(("assistant", result))
@@ -595,10 +644,26 @@ if st.session_state.current_sarif:
     total = sarif_metrics["total"]
     sc = sarif_metrics["severity_counts"]
 
-    st.markdown("""<div class="section-header">Scan Results</div>""", unsafe_allow_html=True)
+    risk = _risk_score(sc)
+    risk_col = _risk_color(risk)
+    risk_lbl = "CRITICAL" if risk >= 75 else "HIGH" if risk >= 45 else "MEDIUM" if risk >= 20 else "LOW"
+    duration_html = (
+        f'<span style="font-size:0.75rem;color:#475569;margin-left:0.75rem;">· {st.session_state.scan_duration}</span>'
+        if st.session_state.scan_duration else ""
+    )
+
+    st.markdown(
+        f'<div class="section-header">Scan Results{duration_html}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown(f"""
     <div class="metrics-row">
+      <div class="mcard" style="border-color:{risk_col}33;flex:1.2;">
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{risk_col};margin-bottom:0.2rem;">{risk_lbl} RISK</div>
+        <div class="mcard-val" style="color:{risk_col};text-shadow:0 0 20px {risk_col}66;">{risk}</div>
+        <div class="mcard-lbl">Risk Score</div>
+      </div>
       <div class="mcard mcard-total">
         <div class="mcard-val val-total">{total}</div>
         <div class="mcard-lbl">Total</div>
@@ -752,8 +817,17 @@ if st.session_state.current_sarif:
                         unsafe_allow_html=True,
                     )
                 with col_b:
+                    cwe_url, cwe_id = _cwe_url(finding["rule_id"])
+                    cwe_html = (
+                        f' <a href="{cwe_url}" target="_blank" '
+                        f'style="color:#64748b;font-size:0.72rem;text-decoration:none;'
+                        f'border:1px solid #334155;border-radius:3px;padding:1px 5px;margin-left:4px;">'
+                        f'CWE-{cwe_id} ↗</a>'
+                        if cwe_url else ""
+                    )
                     st.markdown(
                         f'<code style="color:#00b4ff;font-size:0.82rem;">{finding["rule_id"]}</code>'
+                        f'{cwe_html}'
                         f'<span style="color:#475569;font-size:0.78rem;"> · via {finding["tool"]}</span>',
                         unsafe_allow_html=True,
                     )
