@@ -162,17 +162,12 @@ def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
     try:
         # Execute command in existing sandbox
         # Command: opencode run <prompt>
-        env_overrides = {}
-        if scan_id:
-            env_overrides["SCAN_ID"] = scan_id
-
         result = client.exec(
             sandbox=sandbox_name,
             command=["opencode", "run", prompt],
             workspace=workspace,
             timeout_seconds=timeout,
             no_login_shell=True,
-            env=env_overrides or None,
         )
 
         # Extract output - result.stdout and result.stderr are already strings

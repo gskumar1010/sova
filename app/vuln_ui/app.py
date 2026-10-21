@@ -612,7 +612,11 @@ if scan_clicked and git_url:
     if not is_valid:
         st.error(f"Invalid URL: {error_msg}")
     else:
+        scan_id = str(uuid.uuid4())
         prompt = f"""@security-analyst Scan this repository: {git_url}
+
+FIRST: run this command before anything else:
+  export SCAN_ID={scan_id}
 
 Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
 1. Use python3 vuln_scan.py clone --url {git_url} --dest /sandbox/tmp/scan
@@ -626,7 +630,6 @@ CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
 
 Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no snippets, no file paths).
 """
-        scan_id = str(uuid.uuid4())
         _scan_start = time.time()
         st.session_state.scan_duration = None
         st.session_state.history.append(("user", git_url))
@@ -635,7 +638,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
 
         def _run_scan():
             try:
-                result_holder["result"] = run_agent(prompt, scan_id=scan_id)
+                result_holder["result"] = run_agent(prompt)
             except Exception as exc:
                 result_holder["error"] = str(exc)
 
