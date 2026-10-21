@@ -41,7 +41,3 @@ spec:
   labels:
     app: vuln-agent
     component: sandbox
-
-  # Annotations for the sandbox pod
-  annotations:
-    description: "Vulnerability scanning agent with dual protection (OpenShell + Kata)"
