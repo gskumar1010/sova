@@ -653,8 +653,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
         ]
         step_keys = [k for k, *_ in STEP_CFG]
 
-        def _pipeline_html(seen: dict) -> str:
-            # Determine which step is active (started but not completed/failed)
+        def _pipeline_html(seen: dict, step_pct: dict = None) -> str:
             active_key = None
             for k, *_ in STEP_CFG:
                 ev = seen.get(k)
@@ -673,11 +672,26 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                 spinner = '<span class="pipe-spinner">⟳</span>' if css == "active" else \
                           "✓" if css == "done" else \
                           "✗" if css == "failed" else icon
+
+                # Show percentage for active step, detail for done step
+                if css == "active" and step_pct and key in step_pct:
+                    pct = step_pct[key]
+                    detail_html = (
+                        f'<div class="pipe-detail" style="color:#00b4ff;">{pct}%</div>'
+                        f'<div style="margin:2px 8px 0;height:2px;background:#1e293b;border-radius:1px;">'
+                        f'<div style="width:{pct}%;height:100%;background:linear-gradient(90deg,#00b4ff,#0060aa);border-radius:1px;transition:width 0.8s;"></div>'
+                        f'</div>'
+                    )
+                elif css == "done" and detail:
+                    detail_html = f'<div class="pipe-detail">{detail[:28]}</div>'
+                else:
+                    detail_html = '<div class="pipe-detail">&nbsp;</div>'
+
                 parts.append(f"""
                   <div class="pipe-step {css}">
                     <div class="pipe-icon">{spinner}</div>
                     <div class="pipe-label">{label}</div>
-                    <div class="pipe-detail">{detail[:28]}</div>
+                    {detail_html}
                   </div>""")
                 if i < len(STEP_CFG) - 1:
                     conn_cls = "done" if status == "completed" else \
@@ -691,12 +705,25 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
 
         # Start with Clone active so user knows it's running
         seen: dict = {"clone": {"step": "clone", "status": "started", "detail": None}}
-        pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+        pipeline_ph.markdown(_pipeline_html(seen, {"clone": 0}), unsafe_allow_html=True)
 
         deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
         _t0 = time.time()
         log_lines: list = []
         _prev_seen_keys = set()
+        _step_start_times: dict = {"clone": time.time()}  # clone starts immediately
+        _step_est = {k: t for k, *_, t in STEP_CFG}
+
+        def _compute_pct(seen: dict) -> dict:
+            pct = {}
+            for key, *_, est in STEP_CFG:
+                ev = seen.get(key)
+                if ev and ev["status"] == "started":
+                    start = _step_start_times.get(key, time.time())
+                    elapsed_step = time.time() - start
+                    # Cap at 95% until completed event arrives
+                    pct[key] = min(95, int(elapsed_step / est * 100))
+            return pct
 
         def _ts():
             e = int(time.time() - _t0)
@@ -717,11 +744,12 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
             for ev in events:
                 seen[ev["step"]] = ev
 
-            # Add log lines for new events
+            # Add log lines and track start times for new events
             for key in [k for k, *_ in STEP_CFG]:
                 if key in seen and key not in _prev_seen_keys:
                     ev = seen[key]
                     if ev["status"] == "started":
+                        _step_start_times[key] = time.time()
                         log_lines.append(f"{_ts()} {_STEP_START_MSG.get(key, key)}")
                     elif ev["status"] == "completed":
                         detail = f" ({ev['detail']})" if ev.get("detail") else ""
@@ -730,7 +758,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                         log_lines.append(f"{_ts()} ✗ {key.capitalize()} failed")
                     _prev_seen_keys.add(key)
 
-            pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+            pipeline_ph.markdown(_pipeline_html(seen, _compute_pct(seen)), unsafe_allow_html=True)
 
             elapsed = int(time.time() - _t0)
             m, s = divmod(elapsed, 60)
@@ -752,7 +780,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
         events = _poll_progress(scan_id)
         for ev in events:
             seen[ev["step"]] = ev
-        pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+        pipeline_ph.markdown(_pipeline_html(seen, {}), unsafe_allow_html=True)
 
         elapsed = time.time() - _scan_start
         mins, secs = divmod(int(elapsed), 60)
