@@ -1,13 +1,13 @@
 This folder has the architecture diagram and abstract of what this project is trying to accomplish.
 This existing GitHub repo is based off https://github.com/rh-ai-quickstart/secure-agents-with-openshell-kata
-Which builds a secure travel agent
-Our objective is to build a Enterprise-grade, privacy-first vulnerability scanning platform for sovereign environments
+which provides a foundation for secure agent deployment with OpenShell and Kata Containers.
+Our objective is to build an Enterprise-grade, privacy-first vulnerability scanning platform for sovereign environments.
 
 Requirements
 
 Use https://github.com/visa/visa-vulnerability-agentic-harness and
-https://github.com/capitalone/vulnhunter repositories extensively and ONLY modify https://github.com/gskumar1010/sova/tree/main/3-demo , https://github.com/gskumar1010/sova/tree/main/app
-https://github.com/gskumar1010/sova/tree/main/images/mock-travel-api, https://github.com/gskumar1010/sova/tree/main/images/travel-ui
+https://github.com/capitalone/vulnhunter repositories extensively and ONLY modify https://github.com/gskumar1010/sova/tree/main/3-demo , https://github.com/gskumar1010/sova/tree/main/app,
+and https://github.com/gskumar1010/sova/tree/main/images
 to build a Sovereign Oversight & Vulnerability Agent
 
 
