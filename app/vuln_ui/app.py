@@ -686,8 +686,10 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
             parts.append("</div>")
             return "".join(parts)
 
+        # Immediately show Clone as active so the user knows it started
+        _initial_seen = {"clone": {"step": "clone", "status": "started", "detail": None}}
         pipeline_ph = st.empty()
-        pipeline_ph.markdown(_pipeline_html({}), unsafe_allow_html=True)
+        pipeline_ph.markdown(_pipeline_html(_initial_seen), unsafe_allow_html=True)
 
         seen: dict = {}
         deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
