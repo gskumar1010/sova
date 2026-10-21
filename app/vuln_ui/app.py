@@ -59,7 +59,7 @@ def _poll_progress(scan_id: str) -> list:
         return []
 
 st.set_page_config(
-    page_title="SOVA — Sovereign Vulnerability Analysis",
+    page_title="SOVA — Sovereign Oversight & Vulnerability Analysis",
     page_icon="🛡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -511,7 +511,7 @@ with st.sidebar:
     st.markdown("""
     <div class="sb-logo">
       <div class="sb-logo-title">🛡 SOVA</div>
-      <div class="sb-logo-sub">Sovereign Vulnerability Analysis Agent</div>
+      <div class="sb-logo-sub">Sovereign Oversight & Vulnerability Agent</div>
     </div>
 
     <div class="sb-section">
@@ -569,7 +569,7 @@ st.markdown("""
 <div class="hero-wrap">
   <div class="hero-grid-text">[ KATA VM ] [ OPENSHELL ] [ RHOAI ]<br>EGRESS POLICY: ENFORCE<br>SANDBOX: ACTIVE</div>
   <div class="hero-eyebrow">Red Hat OpenShift AI · DEMOJam 2027</div>
-  <div class="hero-title">Sovereign Vulnerability<br>Analysis Agent</div>
+  <div class="hero-title">Sovereign Oversight &amp;<br>Vulnerability Agent</div>
   <div class="hero-sub">
     AI-powered code security scanning that never leaves your cluster.
     Every scan runs inside a hardware-isolated Kata VM with enforced network egress control.
