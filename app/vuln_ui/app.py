@@ -687,7 +687,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
             return "".join(parts)
 
         pipeline_ph = st.empty()
-        timer_ph = st.empty()
+        log_ph = st.empty()
 
         # Start with Clone active so user knows it's running
         seen: dict = {"clone": {"step": "clone", "status": "started", "detail": None}}
@@ -695,21 +695,56 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
 
         deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
         _t0 = time.time()
+        log_lines: list = []
+        _prev_seen_keys = set()
+
+        def _ts():
+            e = int(time.time() - _t0)
+            m, s = divmod(e, 60)
+            return f"[{m:02d}:{s:02d}]"
+
+        _STEP_START_MSG = {
+            "clone":    "Cloning repository into sandbox…",
+            "semgrep":  "Running Semgrep (694 rules: OWASP, p/python, p/security-audit)…",
+            "bandit":   "Running Bandit Python security scanner…",
+            "analysis": "AI agent synthesizing findings…",
+        }
+
+        log_lines.append(f"{_ts()} Scan initiated — connecting to Kata VM sandbox")
 
         while scan_thread.is_alive() and time.time() < deadline:
             events = _poll_progress(scan_id)
             for ev in events:
                 seen[ev["step"]] = ev
+
+            # Add log lines for new events
+            for key in [k for k, *_ in STEP_CFG]:
+                if key in seen and key not in _prev_seen_keys:
+                    ev = seen[key]
+                    if ev["status"] == "started":
+                        log_lines.append(f"{_ts()} {_STEP_START_MSG.get(key, key)}")
+                    elif ev["status"] == "completed":
+                        detail = f" ({ev['detail']})" if ev.get("detail") else ""
+                        log_lines.append(f"{_ts()} ✓ {key.capitalize()} complete{detail}")
+                    elif ev["status"] == "failed":
+                        log_lines.append(f"{_ts()} ✗ {key.capitalize()} failed")
+                    _prev_seen_keys.add(key)
+
             pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+
             elapsed = int(time.time() - _t0)
             m, s = divmod(elapsed, 60)
-            timer_ph.markdown(
-                f'<div style="font-size:0.75rem;color:#475569;text-align:center;margin-top:-0.5rem;">'
-                f'Scanning… {m}m {s}s elapsed</div>',
+            log_display = "\n".join(log_lines[-12:])  # last 12 lines
+            log_ph.markdown(
+                f'<div style="background:rgba(8,12,24,0.8);border:1px solid rgba(0,180,255,0.1);'
+                f'border-radius:8px;padding:0.75rem 1rem;font-family:JetBrains Mono,monospace;'
+                f'font-size:0.72rem;color:#475569;white-space:pre-wrap;max-height:160px;overflow:hidden;">'
+                f'{log_display}\n<span style="color:#00b4ff;">▌</span> {m:02d}:{s:02d} elapsed'
+                f'</div>',
                 unsafe_allow_html=True,
             )
             time.sleep(1)
-        timer_ph.empty()
+        log_ph.empty()
 
         scan_thread.join()
 
