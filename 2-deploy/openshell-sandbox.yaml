@@ -36,8 +36,3 @@ spec:
 
   # Log level
   logLevel: info
-
-  # Labels for the sandbox pod
-  labels:
-    app: vuln-agent
-    component: sandbox
