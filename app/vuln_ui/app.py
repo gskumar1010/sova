@@ -737,6 +737,44 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
             "analysis": "AI agent synthesizing findings…",
         }
 
+        # Sub-step messages: {step: [(after_secs, message), ...]}
+        _SUBSTEPS = {
+            "clone": [
+                (2,  "  → Resolving github.com via OpenShell proxy…"),
+                (5,  "  → Initiating shallow clone (depth=1)…"),
+                (10, "  → Receiving objects…"),
+                (20, "  → Resolving deltas…"),
+                (30, "  → Checking repository size (limit: 500 MB)…"),
+                (40, "  → Staging files to /sandbox/tmp/scan…"),
+            ],
+            "semgrep": [
+                (3,  "  → Fetching p/security-audit ruleset from semgrep.dev…"),
+                (12, "  → Fetching p/python ruleset…"),
+                (22, "  → Fetching p/owasp-top-ten ruleset…"),
+                (35, "  → Loaded 694 rules — starting analysis…"),
+                (50, "  → Scanning Python source files…"),
+                (80, "  → Scanning configuration files…"),
+                (110,"  → Scanning dependency files…"),
+                (140,"  → Deduplicating and ranking findings…"),
+            ],
+            "bandit": [
+                (3,  "  → Building Python AST…"),
+                (8,  "  → Checking injection vulnerabilities (B6xx)…"),
+                (15, "  → Checking cryptographic weaknesses (B3xx)…"),
+                (22, "  → Checking hardcoded secrets (B1xx)…"),
+                (30, "  → Checking subprocess usage (B4xx)…"),
+                (40, "  → Generating JSON report…"),
+            ],
+            "analysis": [
+                (5,  "  → Sending findings to nemotron-30b-vulkan…"),
+                (30, "  → Model reviewing vulnerability severity…"),
+                (90, "  → Mapping findings to CWE classifications…"),
+                (150,"  → Generating remediation guidance…"),
+                (210,"  → Structuring final report…"),
+            ],
+        }
+        _substep_shown: dict = {k: set() for k in _SUBSTEPS}
+
         log_lines.append(f"{_ts()} Scan initiated — connecting to Kata VM sandbox")
 
         while scan_thread.is_alive() and time.time() < deadline:
@@ -757,6 +795,16 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                     elif ev["status"] == "failed":
                         log_lines.append(f"{_ts()} ✗ {key.capitalize()} failed")
                     _prev_seen_keys.add(key)
+
+            # Emit sub-step messages based on elapsed time within each active step
+            for key, substeps in _SUBSTEPS.items():
+                ev = seen.get(key)
+                if ev and ev["status"] == "started":
+                    step_elapsed = time.time() - _step_start_times.get(key, _t0)
+                    for after, msg in substeps:
+                        if step_elapsed >= after and after not in _substep_shown[key]:
+                            log_lines.append(f"{_ts()} {msg}")
+                            _substep_shown[key].add(after)
 
             pipeline_ph.markdown(_pipeline_html(seen, _compute_pct(seen)), unsafe_allow_html=True)
 
