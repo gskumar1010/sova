@@ -403,6 +403,85 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
   background: rgba(0,180,255,0.08);
 }
 
+/* ═══════════════════════════════════════════
+   SCAN PIPELINE ANIMATION
+═══════════════════════════════════════════ */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 1.25rem 0.5rem;
+  overflow-x: auto;
+}
+.pipe-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 110px;
+  flex-shrink: 0;
+}
+.pipe-icon {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 2px solid #1e293b;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  background: #0d1521;
+  transition: all 0.3s;
+}
+.pipe-label {
+  font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: #334155; text-align: center;
+}
+.pipe-detail {
+  font-size: 0.62rem; color: #1e293b;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center; min-height: 0.9rem;
+}
+/* pending */
+.pipe-step.pending .pipe-icon { border-color: #1e293b; color: #1e293b; }
+.pipe-step.pending .pipe-label { color: #1e293b; }
+/* active */
+.pipe-step.active .pipe-icon {
+  border-color: #00b4ff;
+  box-shadow: 0 0 0 4px rgba(0,180,255,0.12), 0 0 20px rgba(0,180,255,0.2);
+  color: #00b4ff;
+  animation: pipe-pulse 1.4s ease-in-out infinite;
+}
+.pipe-step.active .pipe-label { color: #00b4ff; }
+.pipe-step.active .pipe-detail { color: #475569; }
+@keyframes pipe-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(0,180,255,0.12), 0 0 20px rgba(0,180,255,0.2); }
+  50%       { box-shadow: 0 0 0 8px rgba(0,180,255,0.06), 0 0 35px rgba(0,180,255,0.35); }
+}
+@keyframes pipe-spin {
+  from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+}
+.pipe-spinner { display: inline-block; animation: pipe-spin 1s linear infinite; }
+/* done */
+.pipe-step.done .pipe-icon {
+  border-color: #22c55e;
+  background: rgba(34,197,94,0.08);
+  color: #22c55e;
+  box-shadow: 0 0 12px rgba(34,197,94,0.2);
+}
+.pipe-step.done .pipe-label { color: #22c55e; }
+.pipe-step.done .pipe-detail { color: #475569; }
+/* failed */
+.pipe-step.failed .pipe-icon { border-color: #ef4444; color: #ef4444; }
+.pipe-step.failed .pipe-label { color: #ef4444; }
+/* connector */
+.pipe-connector {
+  flex: 1; height: 2px; min-width: 20px;
+  background: #1e293b;
+  transition: background 0.4s;
+  margin-bottom: 1.5rem;
+}
+.pipe-connector.done { background: linear-gradient(90deg, #22c55e, #00b4ff44); }
+.pipe-connector.active { background: linear-gradient(90deg, #22c55e 0%, #00b4ff 100%); }
+
 /* ── Chat input — force full area dark ── */
 [data-testid="stChatInput"],
 [data-testid="stChatInput"] > div,
@@ -563,112 +642,93 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
         scan_thread = threading.Thread(target=_run_scan, daemon=True)
         scan_thread.start()
 
-        # Step display config: key → (label, fallback_timeout_secs)
-        STEP_CFG = {
-            "clone":    ("Cloning repository into sandbox",                            60),
-            "semgrep":  ("Semgrep · 694 rules (OWASP · p/python · p/security-audit)", 180),
-            "bandit":   ("Bandit · Python security analysis",                          60),
-            "analysis": ("AI agent synthesizing findings",                              90),
-        }
-        step_keys = list(STEP_CFG.keys())
+        STEP_CFG = [
+            ("clone",    "Clone",       "📦", 60),
+            ("semgrep",  "Semgrep",     "🔍", 180),
+            ("bandit",   "Bandit",      "🐍", 60),
+            ("analysis", "AI Analysis", "🤖", 90),
+        ]
+        step_keys = [k for k, *_ in STEP_CFG]
 
-        def _fmt_running(label):
-            return f'<span style="color:#64748b;font-size:0.88rem;">⟳ &nbsp;{label}…</span>'
+        def _pipeline_html(seen: dict) -> str:
+            # Determine which step is active (started but not completed/failed)
+            active_key = None
+            for k, *_ in STEP_CFG:
+                ev = seen.get(k)
+                if ev and ev["status"] == "started":
+                    active_key = k
 
-        def _fmt_done(label, detail=None):
-            suffix = f' <span style="color:#475569;font-size:0.78rem;">· {detail}</span>' if detail else ""
-            return f'<span style="color:#22c55e;font-size:0.88rem;">✓ &nbsp;{label}{suffix}</span>'
+            parts = ['<div class="pipeline">']
+            for i, (key, label, icon, _) in enumerate(STEP_CFG):
+                ev = seen.get(key)
+                status = ev["status"] if ev else "pending"
+                detail = (ev.get("detail") or "") if ev else ""
+                css = "done" if status == "completed" else \
+                      "failed" if status == "failed" else \
+                      "active" if key == active_key else \
+                      "pending"
+                spinner = '<span class="pipe-spinner">⟳</span>' if css == "active" else \
+                          "✓" if css == "done" else \
+                          "✗" if css == "failed" else icon
+                parts.append(f"""
+                  <div class="pipe-step {css}">
+                    <div class="pipe-icon">{spinner}</div>
+                    <div class="pipe-label">{label}</div>
+                    <div class="pipe-detail">{detail[:28]}</div>
+                  </div>""")
+                if i < len(STEP_CFG) - 1:
+                    conn_cls = "done" if status == "completed" else \
+                               "active" if key == active_key else ""
+                    parts.append(f'<div class="pipe-connector {conn_cls}"></div>')
+            parts.append("</div>")
+            return "".join(parts)
 
-        def _fmt_fail(label, detail=None):
-            suffix = f' <span style="color:#475569;font-size:0.78rem;">· {detail}</span>' if detail else ""
-            return f'<span style="color:#ef4444;font-size:0.88rem;">✗ &nbsp;{label}{suffix}</span>'
+        pipeline_ph = st.empty()
+        pipeline_ph.markdown(_pipeline_html({}), unsafe_allow_html=True)
 
-        with st.status("Scanning inside Kata VM sandbox…", expanded=True) as scan_status:
-            placeholders = {k: st.empty() for k in step_keys}
+        seen: dict = {}
+        deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
 
-            seen: dict = {}   # step -> latest event
-            current_step_idx = 0
-
-            # Show first step as running immediately
-            first_key = step_keys[0]
-            first_label = STEP_CFG[first_key][0]
-            placeholders[first_key].markdown(_fmt_running(first_label), unsafe_allow_html=True)
-
-            deadline = time.time() + sum(t for _, t in STEP_CFG.values()) + 30
-
-            while scan_thread.is_alive() and time.time() < deadline:
-                events = _poll_progress(scan_id)
-                for ev in events:
-                    k = ev["step"]
-                    seen[k] = ev
-
-                for i, key in enumerate(step_keys):
-                    label, _ = STEP_CFG[key]
-                    ev = seen.get(key)
-                    if ev is None:
-                        if i == current_step_idx:
-                            placeholders[key].markdown(_fmt_running(label), unsafe_allow_html=True)
-                        continue
-                    if ev["status"] == "started":
-                        current_step_idx = i
-                        placeholders[key].markdown(_fmt_running(label), unsafe_allow_html=True)
-                        # Mark next step as waiting
-                        if i + 1 < len(step_keys):
-                            nk = step_keys[i + 1]
-                            if nk not in seen:
-                                nl, _ = STEP_CFG[nk]
-                                placeholders[nk].markdown(_fmt_running(nl), unsafe_allow_html=True)
-                    elif ev["status"] == "completed":
-                        placeholders[key].markdown(_fmt_done(label, ev.get("detail")), unsafe_allow_html=True)
-                    elif ev["status"] == "failed":
-                        placeholders[key].markdown(_fmt_fail(label, ev.get("detail")), unsafe_allow_html=True)
-
-                time.sleep(1)
-
-            scan_thread.join()
-
-            # Final pass — mark anything not yet shown
+        while scan_thread.is_alive() and time.time() < deadline:
             events = _poll_progress(scan_id)
             for ev in events:
                 seen[ev["step"]] = ev
-            for key in step_keys:
-                label, _ = STEP_CFG[key]
-                ev = seen.get(key)
-                if ev and ev["status"] == "completed":
-                    placeholders[key].markdown(_fmt_done(label, ev.get("detail")), unsafe_allow_html=True)
-                elif ev and ev["status"] == "failed":
-                    placeholders[key].markdown(_fmt_fail(label, ev.get("detail")), unsafe_allow_html=True)
+            pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+            time.sleep(1)
 
-            elapsed = time.time() - _scan_start
-            mins, secs = divmod(int(elapsed), 60)
-            duration_str = f"{mins}m {secs}s" if mins else f"{secs}s"
+        scan_thread.join()
 
-            if "error" in result_holder:
-                scan_status.update(label="Scan failed", state="error", expanded=True)
-                st.error(result_holder["error"])
-            else:
-                scan_status.update(
-                    label=f"Scan complete · {duration_str}",
-                    state="complete", expanded=False,
-                )
-                st.session_state.scan_duration = duration_str
-                result = result_holder.get("result")
-                if result:
-                    st.session_state.history.append(("assistant", result))
-                    st.session_state.egress_blocked = result.egress_blocked
-                    if result.sarif_data:
-                        st.session_state.current_sarif = result.sarif_data
-                        sc_tmp = parse_sarif(result.sarif_data)["severity_counts"]
-                        entry = {
-                            "url": git_url,
-                            "sarif": result.sarif_data,
-                            "duration": duration_str,
-                            "risk": _risk_score(sc_tmp),
-                            "ts": time.strftime("%H:%M"),
-                        }
-                        st.session_state.scan_history = (
-                            [entry] + st.session_state.scan_history
-                        )[:5]
+        # Final render
+        events = _poll_progress(scan_id)
+        for ev in events:
+            seen[ev["step"]] = ev
+        pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+
+        elapsed = time.time() - _scan_start
+        mins, secs = divmod(int(elapsed), 60)
+        duration_str = f"{mins}m {secs}s" if mins else f"{secs}s"
+
+        if "error" in result_holder:
+            st.error(result_holder["error"])
+        else:
+            st.session_state.scan_duration = duration_str
+            result = result_holder.get("result")
+            if result:
+                st.session_state.history.append(("assistant", result))
+                st.session_state.egress_blocked = result.egress_blocked
+                if result.sarif_data:
+                    st.session_state.current_sarif = result.sarif_data
+                    sc_tmp = parse_sarif(result.sarif_data)["severity_counts"]
+                    entry = {
+                        "url": git_url,
+                        "sarif": result.sarif_data,
+                        "duration": duration_str,
+                        "risk": _risk_score(sc_tmp),
+                        "ts": time.strftime("%H:%M"),
+                    }
+                    st.session_state.scan_history = (
+                        [entry] + st.session_state.scan_history
+                    )[:5]
 
 # ── SARIF Dashboard ───────────────────────────────────────────────────────────
 if st.session_state.current_sarif:
