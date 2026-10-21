@@ -469,6 +469,22 @@ with st.sidebar:
     ]:
         st.code(f"https://{ex}.git", language=None)
 
+    # ── Scan history ──────────────────────────────────────────────────────────
+    if st.session_state.get("scan_history"):
+        st.markdown("""
+        <div class="sb-section" style="margin-top:0.5rem;">
+          <div class="sb-section-title">Recent Scans</div>
+        </div>
+        """, unsafe_allow_html=True)
+        for i, entry in enumerate(st.session_state.scan_history):
+            repo_short = entry["url"].split("/")[-1].replace(".git", "")
+            risk_col = _risk_color(entry["risk"])
+            label = f'`{repo_short}` · risk {entry["risk"]} · {entry["ts"]}'
+            if st.button(label, key=f"hist_{i}", use_container_width=True):
+                st.session_state.current_sarif = entry["sarif"]
+                st.session_state.scan_duration = entry["duration"]
+                st.rerun()
+
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero-wrap">
@@ -495,6 +511,10 @@ if "current_sarif" not in st.session_state:
     st.session_state.current_sarif = None
 if "scan_duration" not in st.session_state:
     st.session_state.scan_duration = None
+if "scan_history" not in st.session_state:
+    st.session_state.scan_history = []   # list of {url, sarif, duration, risk, ts}
+if "egress_blocked" not in st.session_state:
+    st.session_state.egress_blocked = False
 
 # ── Scan input ────────────────────────────────────────────────────────────────
 st.markdown('<div class="scan-label">Repository URL</div>', unsafe_allow_html=True)
@@ -635,8 +655,20 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                 result = result_holder.get("result")
                 if result:
                     st.session_state.history.append(("assistant", result))
+                    st.session_state.egress_blocked = result.egress_blocked
                     if result.sarif_data:
                         st.session_state.current_sarif = result.sarif_data
+                        sc_tmp = parse_sarif(result.sarif_data)["severity_counts"]
+                        entry = {
+                            "url": git_url,
+                            "sarif": result.sarif_data,
+                            "duration": duration_str,
+                            "risk": _risk_score(sc_tmp),
+                            "ts": time.strftime("%H:%M"),
+                        }
+                        st.session_state.scan_history = (
+                            [entry] + st.session_state.scan_history
+                        )[:5]
 
 # ── SARIF Dashboard ───────────────────────────────────────────────────────────
 if st.session_state.current_sarif:
@@ -684,6 +716,19 @@ if st.session_state.current_sarif:
         <div class="mcard-val val-low">{sc['low']}</div>
         <div class="mcard-lbl">Low</div>
       </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── On-prem callout ───────────────────────────────────────────────────────
+    blocked_extra = " · egress attempt detected and blocked" if st.session_state.get("egress_blocked") else ""
+    st.markdown(f"""
+    <div style="background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);
+                border-left:3px solid #22c55e;border-radius:8px;
+                padding:0.65rem 1rem;margin-bottom:1rem;
+                display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+      <span style="font-size:0.78rem;font-weight:600;color:#22c55e;">🔒 Data stayed on-prem</span>
+      <span style="font-size:0.75rem;color:#475569;">✓ Model endpoint &nbsp;·&nbsp; ✓ semgrep.dev &nbsp;·&nbsp; ✓ github.com</span>
+      <span style="font-size:0.75rem;color:#ef4444;">✗ All other egress blocked{blocked_extra}</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -767,8 +812,42 @@ if st.session_state.current_sarif:
                 )
                 st.plotly_chart(bar_fig, use_container_width=True)
 
+        # ── Files by finding count ────────────────────────────────────────────
+        st.markdown("""<div class="section-header" style="margin-top:1.25rem">Hotspot Files</div>""", unsafe_allow_html=True)
+        file_counts = (
+            df.groupby("file")
+            .agg(count=("file", "count"))
+            .reset_index()
+            .sort_values("count", ascending=False)
+            .head(8)
+        )
+        file_counts["short"] = file_counts["file"].apply(
+            lambda p: ("…/" + "/".join(p.split("/")[-2:])) if p.count("/") > 1 else p
+        )
+        hf_fig = go.Figure(go.Bar(
+            x=file_counts["count"],
+            y=file_counts["short"],
+            orientation="h",
+            marker=dict(color="rgba(0,180,255,0.5)", line=dict(color="rgba(0,180,255,0.8)", width=1)),
+            text=file_counts["count"],
+            textposition="outside",
+            textfont=dict(color="#94a3b8", size=10),
+            hovertext=file_counts["file"],
+            hovertemplate="<b>%{hovertext}</b><br>%{x} findings<extra></extra>",
+        ))
+        hf_fig.update_layout(
+            height=220,
+            margin=dict(t=5, b=5, l=5, r=40),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(color="#64748b", tickfont=dict(size=9, family="JetBrains Mono"), autorange="reversed"),
+            bargap=0.3,
+        )
+        st.plotly_chart(hf_fig, use_container_width=True)
+
         # ── Findings drill-down ───────────────────────────────────────────────
-        st.markdown("""<div class="section-header" style="margin-top:1.25rem">Findings</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="section-header" style="margin-top:0.5rem">Findings</div>""", unsafe_allow_html=True)
 
         if "rule_filter" not in st.session_state:
             st.session_state.rule_filter = "All rules"
