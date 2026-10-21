@@ -366,11 +366,25 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
   background: rgba(0,180,255,0.08);
 }
 
+/* ── Chat input — force full area dark ── */
+[data-testid="stChatInput"],
+[data-testid="stChatInput"] > div,
+[data-testid="stChatInput"] textarea,
+[data-testid="stBottom"],
+[data-testid="stBottom"] > div,
+.stChatFloatingInputContainer,
+.stChatFloatingInputContainer > div {
+  background: #050810 !important;
+}
 [data-testid="stChatInput"] > div {
-  background: rgba(8,12,24,0.8) !important;
   border: 1px solid rgba(0,180,255,0.18) !important;
   border-radius: 12px !important;
 }
+[data-testid="stChatInput"] textarea {
+  color: #f1f5f9 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+[data-testid="stChatInput"] textarea::placeholder { color: #334155 !important; }
 
 #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
 </style>
