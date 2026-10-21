@@ -720,9 +720,12 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                 ev = seen.get(key)
                 if ev and ev["status"] == "started":
                     start = _step_start_times.get(key, time.time())
-                    elapsed_step = time.time() - start
-                    # Cap at 95% until completed event arrives
-                    pct[key] = min(95, int(elapsed_step / est * 100))
+                    elapsed_step = max(0.1, time.time() - start)
+                    # Asymptotic curve: fast start, decelerates, never reaches 100%
+                    # pct = 90 * elapsed / (elapsed + est)
+                    # At elapsed=0: 0%, at elapsed=est: 45%, at elapsed=3*est: 67%
+                    # Always looks like it's still working — never stalls at 95%
+                    pct[key] = int(90 * elapsed_step / (elapsed_step + est))
             return pct
 
         def _ts():
