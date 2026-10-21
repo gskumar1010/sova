@@ -127,7 +127,7 @@ class AgentResult:
     sarif_data: Optional[Dict[str, Any]] = None
 
 
-def run_agent(prompt: str) -> AgentResult:
+def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
     """Execute the vulnerability scanning agent using OpenShell Python API."""
     import logging
     logger = logging.getLogger(__name__)
@@ -167,7 +167,7 @@ def run_agent(prompt: str) -> AgentResult:
             command=["opencode", "run", prompt],
             workspace=workspace,
             timeout_seconds=timeout,
-            no_login_shell=True  # Don't start an interactive shell
+            no_login_shell=True,
         )
 
         # Extract output - result.stdout and result.stderr are already strings

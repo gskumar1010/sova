@@ -2,6 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
+from datetime import datetime
 import uuid
 
 from app.vuln_orchestrator.scan_manager import ScanManager
@@ -11,6 +12,9 @@ from app.vuln_orchestrator.scanners.safety_runner import run_safety
 
 app = FastAPI(title="SOVA Vulnerability Orchestrator", version="1.0.0")
 scan_manager = ScanManager()
+
+# In-memory progress store: scan_id -> list of step events
+_progress: dict = {}
 
 
 class ScanRequest(BaseModel):
@@ -33,6 +37,34 @@ class SARIFSubmission(BaseModel):
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "service": "vuln-orchestrator"}
+
+
+# ── Progress tracking ─────────────────────────────────────────────────────────
+
+class ProgressEvent(BaseModel):
+    step: str    # e.g. "clone", "semgrep", "bandit", "analysis"
+    status: str  # "started" | "completed" | "failed"
+    detail: Optional[str] = None
+
+
+@app.post("/scan/progress/{scan_id}")
+def post_progress(scan_id: str, event: ProgressEvent):
+    """Agent calls this to report step completion inside the sandbox."""
+    if scan_id not in _progress:
+        _progress[scan_id] = []
+    _progress[scan_id].append({
+        "step": event.step,
+        "status": event.status,
+        "detail": event.detail,
+        "ts": datetime.utcnow().isoformat(),
+    })
+    return {"ok": True}
+
+
+@app.get("/scan/progress/{scan_id}")
+def get_progress(scan_id: str):
+    """UI polls this to get live step updates."""
+    return {"scan_id": scan_id, "events": _progress.get(scan_id, [])}
 
 
 @app.post("/scan/start")
