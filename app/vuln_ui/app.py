@@ -686,20 +686,30 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
             parts.append("</div>")
             return "".join(parts)
 
-        # Immediately show Clone as active so the user knows it started
-        _initial_seen = {"clone": {"step": "clone", "status": "started", "detail": None}}
         pipeline_ph = st.empty()
-        pipeline_ph.markdown(_pipeline_html(_initial_seen), unsafe_allow_html=True)
+        timer_ph = st.empty()
 
-        seen: dict = {}
+        # Start with Clone active so user knows it's running
+        seen: dict = {"clone": {"step": "clone", "status": "started", "detail": None}}
+        pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+
         deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
+        _t0 = time.time()
 
         while scan_thread.is_alive() and time.time() < deadline:
             events = _poll_progress(scan_id)
             for ev in events:
                 seen[ev["step"]] = ev
             pipeline_ph.markdown(_pipeline_html(seen), unsafe_allow_html=True)
+            elapsed = int(time.time() - _t0)
+            m, s = divmod(elapsed, 60)
+            timer_ph.markdown(
+                f'<div style="font-size:0.75rem;color:#475569;text-align:center;margin-top:-0.5rem;">'
+                f'Scanning… {m}m {s}s elapsed</div>',
+                unsafe_allow_html=True,
+            )
             time.sleep(1)
+        timer_ph.empty()
 
         scan_thread.join()
 
