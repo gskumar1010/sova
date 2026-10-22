@@ -181,13 +181,41 @@ def parse_sarif(sarif_data: Dict[str, Any]) -> Dict[str, Any]:
             rule_id = result.get("ruleId", "UNKNOWN")
             message = result.get("message", {}).get("text", "")
 
-            # Map SARIF level to severity
-            severity_map = {
-                "error": "critical" if "critical" in message.lower() or "CWE-89" in rule_id or "injection" in message.lower() else "high",
-                "warning": "medium",
-                "note": "low"
-            }
-            severity = severity_map.get(level, "low")
+            # Check for critical vulnerability patterns in rule ID or message
+            critical_patterns = [
+                "sql-injection", "sqli", "CWE-89",
+                "command-injection", "shell-injection", "CWE-78",
+                "code-injection", "eval", "exec", "CWE-94",
+                "template-injection", "ssti", "render-template-string",
+                "deserialization", "pickle", "CWE-502",
+                "xxe", "xml-injection", "CWE-611",
+                "path-traversal", "directory-traversal", "CWE-22"
+            ]
+
+            high_patterns = [
+                "xss", "cross-site-scripting", "CWE-79",
+                "csrf", "CWE-352",
+                "ssrf", "CWE-918",
+                "open-redirect", "CWE-601",
+                "insecure-crypto", "weak-cipher",
+                "hardcoded-credential", "CWE-798"
+            ]
+
+            rule_and_msg = (rule_id + " " + message).lower()
+
+            # Override severity based on vulnerability type
+            if any(pattern in rule_and_msg for pattern in critical_patterns):
+                severity = "critical"
+            elif any(pattern in rule_and_msg for pattern in high_patterns):
+                severity = "high"
+            else:
+                # Default SARIF level mapping
+                severity_map = {
+                    "error": "high",
+                    "warning": "medium",
+                    "note": "low"
+                }
+                severity = severity_map.get(level, "low")
             severity_counts[severity] += 1
 
             # Extract location info
