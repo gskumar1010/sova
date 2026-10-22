@@ -265,7 +265,7 @@ fi
 # finds vuln_scan.py and loads the SECURITY_ANALYST.md persona.
 info "Staging vulnerability scanning tool and security analyst persona..."
 openshell sandbox exec -n opencode-dual --no-tty --timeout 60 -- \
-    sh -c 'cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ 2>/dev/null && echo staged' \
+    sh -c 'cp -f /home/user/workspace/vuln_scan.py /home/user/workspace/code_graph.py /home/user/workspace/SECURITY_ANALYST.md /sandbox/ 2>/dev/null && echo staged' \
     2>/dev/null || warn "Could not stage workspace files (do it manually before running the demo)"
 
 # --- Done ---
