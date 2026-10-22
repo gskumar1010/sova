@@ -645,9 +645,9 @@ FIRST: run this command before anything else:
   export SCAN_ID={scan_id}
 
 Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
-1. Use python3 vuln_scan.py clone --url {git_url} --dest /sandbox/tmp/scan
-2. Use python3 vuln_scan.py semgrep --path /sandbox/tmp/scan --output /sandbox/tmp/semgrep.sarif
-3. Use python3 vuln_scan.py bandit --path /sandbox/tmp/scan --output /sandbox/tmp/bandit.json
+1. Use /sandbox/vuln_scan.py clone --url {git_url} --dest /sandbox/tmp/scan
+2. Use /sandbox/vuln_scan.py semgrep --path /sandbox/tmp/scan --output /sandbox/tmp/semgrep.sarif
+3. Use /sandbox/vuln_scan.py bandit --path /sandbox/tmp/scan --output /sandbox/tmp/bandit.json
 
 CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
 - Total vulnerabilities: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
@@ -676,8 +676,8 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
 FIRST: export SCAN_ID={scan_id}
 
 Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
-1. Use python3 vuln_scan.py semgrep --path {sandbox_path} --output /sandbox/tmp/semgrep.sarif
-2. Use python3 vuln_scan.py bandit --path {sandbox_path} --output /sandbox/tmp/bandit.json
+1. Use /sandbox/vuln_scan.py semgrep --path {sandbox_path} --output /sandbox/tmp/semgrep.sarif
+2. Use /sandbox/vuln_scan.py bandit --path {sandbox_path} --output /sandbox/tmp/bandit.json
 
 CRITICAL: Extract COUNTS ONLY:
 - Total: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
