@@ -1180,14 +1180,23 @@ if st.session_state.history:
 custom_prompt = st.chat_input("Send a custom prompt to the security agent...")
 if custom_prompt:
     st.session_state.history.append(("user", custom_prompt))
-    with st.spinner("Agent working inside sandbox..."):
+    with st.spinner("🤖 Agent running in Kata VM sandbox..."):
         try:
-            result = run_agent(custom_prompt)
+            scan_id = str(uuid.uuid4())
+            st.session_state.last_scan_id = scan_id
+            result = run_agent(custom_prompt, scan_id=scan_id, _sid=scan_id)
             st.session_state.history.append(("assistant", result))
             if result.sarif_data:
                 st.session_state.current_sarif = result.sarif_data
+                st.session_state.scan_duration = None
+            st.rerun()
         except Exception as e:
-            st.error(f"Agent error: {str(e)}")
+            st.error(f"❌ Agent error: {str(e)}")
+            st.session_state.history.append(("assistant", AgentResult(
+                text=f"Error: {str(e)}",
+                egress_blocked=False,
+                raw=str(e)
+            )))
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
