@@ -94,7 +94,7 @@ st.markdown("""
   border-right: 1px solid rgba(0,180,255,0.12) !important;
   backdrop-filter: blur(20px);
 }
-[data-testid="stSidebar"] > div { padding-top: 1.5rem; }
+[data-testid="stSidebar"] > div { padding-top: 0.25rem; }
 [data-testid="stHeader"] { background: transparent !important; }
 .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1400px; }
 
@@ -519,16 +519,14 @@ _lb64 = _logo_b64()
 with st.sidebar:
     _logo_img = (
         f'<img src="data:image/png;base64,{_lb64}" '
-        f'style="width:44px;height:44px;object-fit:contain;margin-right:0.6rem;flex-shrink:0;">'
+        f'style="width:64px;height:auto;display:block;margin:0 auto 0.4rem;">'
         if _lb64 else ""
     )
     st.markdown(f"""
-    <div class="sb-logo" style="display:flex;align-items:center;">
+    <div class="sb-logo" style="text-align:center;padding-top:0.1rem;">
       {_logo_img}
-      <div>
-        <div class="sb-logo-title">SOVA</div>
-        <div class="sb-logo-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
-      </div>
+      <div class="sb-logo-title">SOVA</div>
+      <div class="sb-logo-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
     </div>
 
     <div class="sb-section">
