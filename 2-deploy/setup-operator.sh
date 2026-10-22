@@ -316,6 +316,18 @@ try:
         print(f"ERROR: {result.stderr}")
         sys.exit(1)
 
+    print("Copying code_graph.py...")
+    result = client.exec(
+        sandbox="opencode-dual",
+        command=["cp", "-f", "/home/user/workspace/code_graph.py", "/sandbox/"],
+        workspace="default",
+        timeout_seconds=10,
+        no_login_shell=True
+    )
+    if result.exit_code != 0:
+        print(f"ERROR: {result.stderr}")
+        sys.exit(1)
+
     print("Copying SECURITY_ANALYST.md...")
     result = client.exec(
         sandbox="opencode-dual",
@@ -380,7 +392,7 @@ try:
     print("Verifying staged files...")
     result = client.exec(
         sandbox="opencode-dual",
-        command=["ls", "-lh", "/sandbox/vuln_scan.py", "/sandbox/.config/opencode/config.json", "/sandbox/.agents/security-analyst.md"],
+        command=["ls", "-lh", "/sandbox/vuln_scan.py", "/sandbox/code_graph.py", "/sandbox/.config/opencode/config.json", "/sandbox/.agents/security-analyst.md"],
         workspace="default",
         timeout_seconds=10,
         no_login_shell=True
