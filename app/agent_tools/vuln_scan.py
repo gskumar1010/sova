@@ -422,27 +422,32 @@ def main(argv=None) -> int:
 
     try:
         if args.command == "clone":
-            report_progress("clone", "started")
+            report_progress("clone", "started", "Initiating shallow clone…")
             result = clone_repo(args.url, args.dest)
             status = "failed" if "error" in result else "completed"
-            detail = f"{result.get('size_mb', '')} MB · {result.get('commit', '')}" if status == "completed" else result.get("error")
+            detail = f"{result.get('size_mb', '')} MB · commit {result.get('commit', '')}" if status == "completed" else result.get("error")
             report_progress("clone", status, detail)
         elif args.command == "semgrep":
-            report_progress("semgrep", "started")
+            report_progress("semgrep", "started", "Fetching rulesets from semgrep.dev…")
             result = run_semgrep_scan(args.path, args.output)
             if "error" in result:
                 report_progress("semgrep", "failed", result["error"])
             else:
-                count = len(result.get("sarif", {}).get("runs", [{}])[0].get("results", []))
-                report_progress("semgrep", "completed", f"{count} findings")
+                runs = result.get("sarif", {}).get("runs", [{}])
+                count = len(runs[0].get("results", [])) if runs else 0
+                rule_count = len(runs[0].get("tool", {}).get("driver", {}).get("rules", [])) if runs else 0
+                report_progress("semgrep", "completed", f"{count} findings · {rule_count} rules applied")
         elif args.command == "bandit":
-            report_progress("bandit", "started")
+            report_progress("bandit", "started", "Analyzing Python AST…")
             result = run_bandit_scan(args.path, args.output)
             if "error" in result:
                 report_progress("bandit", "failed", result["error"])
             else:
-                count = len(result.get("results", {}).get("results", []))
-                report_progress("bandit", "completed", f"{count} findings")
+                results = result.get("results", {})
+                count = len(results.get("results", []))
+                files = results.get("metrics", {})
+                file_count = len([k for k in files.keys() if k != "_totals"])
+                report_progress("bandit", "completed", f"{count} findings across {file_count} Python files")
         elif args.command == "safety":
             result = run_safety_scan(args.requirements)
         elif args.command == "report":
