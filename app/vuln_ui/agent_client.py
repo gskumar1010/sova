@@ -225,6 +225,136 @@ class AgentResult:
     sarif_data: Optional[Dict[str, Any]] = None
 
 
+def _make_client():
+    """Build a SandboxClient from env."""
+    from openshell.sandbox import SandboxClient
+    gw = os.environ.get("OPENSHELL_GATEWAY_ENDPOINT", "http://openshell-kata:8080")
+    parsed = urlparse(gw)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 80
+    timeout = float(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "1800"))
+    return SandboxClient(endpoint=f"{host}:{port}", tls=None, bearer_token=None, timeout=timeout), timeout
+
+
+@dataclass
+class StepResult:
+    step: str
+    success: bool
+    detail: str = ""
+    sarif: Optional[Dict[str, Any]] = None
+
+
+def run_scan_steps(sandbox_path: str, scan_id: str, on_step: callable = None) -> "tuple[list[StepResult], AgentResult]":
+    """Run semgrep, bandit, and AI analysis as separate exec calls.
+
+    `on_step(step, status, detail)` is called after each step completes so
+    the UI can advance the pipeline in real time.
+
+    Returns (step_results, AgentResult) where AgentResult carries the
+    final text and sarif_data.
+    """
+    from openshell.sandbox import SandboxClient
+
+    sandbox_name = os.environ.get("SANDBOX_NAME", "opencode-dual")
+    workspace = os.environ.get("OPENSHELL_WORKSPACE", "default")
+    client, timeout = _make_client()
+    step_results = []
+    sarif_data = None
+
+    def _exec(cmd, step_timeout=300):
+        return client.exec(
+            sandbox=sandbox_name,
+            command=cmd,
+            workspace=workspace,
+            timeout_seconds=step_timeout,
+            no_login_shell=True,
+        )
+
+    def _notify(step, status, detail=""):
+        _trace_log(scan_id, f"step {step}: {status} {detail}")
+        if on_step:
+            on_step(step, status, detail)
+
+    try:
+        # ── Step 1: Semgrep ───────────────────────────────────────────────
+        _notify("semgrep", "started")
+        t0 = time.time()
+        r = _exec([
+            "python3", "/sandbox/vuln_scan.py", "semgrep",
+            "--path", sandbox_path,
+            "--output", "/sandbox/tmp/semgrep.sarif",
+        ], step_timeout=600)
+        elapsed = time.time() - t0
+        _trace_log(scan_id, f"semgrep exit={r.exit_code} elapsed={elapsed:.0f}s stderr={r.stderr[:200]}")
+        if r.exit_code == 0:
+            sarif_r = _exec(["cat", "/sandbox/tmp/semgrep.sarif"], step_timeout=30)
+            try:
+                sarif_data = json.loads(sarif_r.stdout)
+                count = len(sarif_data.get("runs", [{}])[0].get("results", []))
+                detail = f"{count} findings · {elapsed:.0f}s"
+            except Exception:
+                detail = f"{elapsed:.0f}s"
+            _notify("semgrep", "completed", detail)
+            step_results.append(StepResult("semgrep", True, detail, sarif_data))
+        else:
+            _notify("semgrep", "failed", r.stderr[:100])
+            step_results.append(StepResult("semgrep", False, r.stderr[:80]))
+
+        # ── Step 2: Bandit ────────────────────────────────────────────────
+        _notify("bandit", "started")
+        t0 = time.time()
+        r = _exec([
+            "python3", "/sandbox/vuln_scan.py", "bandit",
+            "--path", sandbox_path,
+            "--output", "/sandbox/tmp/bandit.json",
+        ], step_timeout=300)
+        elapsed = time.time() - t0
+        _trace_log(scan_id, f"bandit exit={r.exit_code} elapsed={elapsed:.0f}s")
+        if r.exit_code == 0:
+            try:
+                bj = _exec(["sh", "-c", "python3 -c \"import json,sys; d=json.load(open('/sandbox/tmp/bandit.json')); print(len(d.get('results',d.get('results',[]))))\" 2>/dev/null || echo 0"], step_timeout=15)
+                count = int(bj.stdout.strip() or "0")
+                detail = f"{count} findings · {elapsed:.0f}s"
+            except Exception:
+                detail = f"{elapsed:.0f}s"
+            _notify("bandit", "completed", detail)
+            step_results.append(StepResult("bandit", True, detail))
+        else:
+            _notify("bandit", "failed", r.stderr[:80])
+            step_results.append(StepResult("bandit", False, r.stderr[:80]))
+
+        # ── Step 3: AI Analysis ───────────────────────────────────────────
+        _notify("analysis", "started")
+        semgrep_count = next((s.sarif and len(s.sarif.get("runs",[{}])[0].get("results",[])) for s in step_results if s.step=="semgrep" and s.sarif), 0)
+        ai_prompt = (
+            f"@security-analyst The repository at {sandbox_path} has been scanned. "
+            f"Semgrep found {semgrep_count} findings in /sandbox/tmp/semgrep.sarif. "
+            f"Bandit results are in /sandbox/tmp/bandit.json. "
+            f"Extract COUNTS ONLY — do NOT read full file contents: "
+            f"jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif and "
+            f"jq '[.runs[0].results[].level] | group_by(.) | map({{(.[0]):length}}) | add' /sandbox/tmp/semgrep.sarif. "
+            f"Report ONLY: total count, severity breakdown, top 5 rule IDs."
+        )
+        t0 = time.time()
+        ai_r = _exec(["opencode", "run", ai_prompt], step_timeout=int(timeout))
+        elapsed = time.time() - t0
+        _trace_log(scan_id, f"AI exit={ai_r.exit_code} elapsed={elapsed:.0f}s stdout={len(ai_r.stdout or '')} stderr={len(ai_r.stderr or '')}")
+        _notify("analysis", "completed" if ai_r.exit_code == 0 else "failed", f"{elapsed:.0f}s")
+
+        stdout = ai_r.stdout or ""
+        stderr = ai_r.stderr or ""
+        raw = stdout + stderr
+        blocked = bool(BLOCKED_RE.search(raw))
+        text = _clean(stdout) if stdout.strip() else _clean(raw)
+        if not text.strip() and raw.strip():
+            text = raw[:2000]
+
+        return step_results, AgentResult(text=text, egress_blocked=blocked, raw=raw, sarif_data=sarif_data)
+
+    finally:
+        client.close()
+
+
 def stage_and_run(git_url: str, scan_id: str = "") -> str:
     """Clone repo in UI pod, stage to sandbox, return (sandbox_path, AgentResult).
 

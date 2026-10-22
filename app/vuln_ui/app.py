@@ -13,7 +13,7 @@ import requests as _requests
 import base64
 from pathlib import Path
 
-from agent_client import run_agent, stage_and_run, validate_git_url, parse_sarif, get_trace
+from agent_client import run_agent, run_scan_steps, stage_and_run, validate_git_url, parse_sarif, get_trace
 
 def _logo_b64() -> str:
     p = Path(__file__).parent / "sova_logo.png"
@@ -660,31 +660,21 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
         st.session_state.history.append(("user", git_url))
 
         result_holder: dict = {}
+        step_events: dict = {}  # step → {status, detail} — written by on_step, read by pipeline loop
+
+        def _on_step(step, status, detail=""):
+            step_events[step] = {"step": step, "status": status, "detail": detail}
 
         def _run_scan():
             try:
-                # Phase 1: clone in UI pod, transfer to sandbox (bypasses Kata VM DNS)
                 result_holder["stage"] = "cloning"
-                sandbox_path = stage_and_run(git_url)
+                sandbox_path = stage_and_run(git_url, scan_id=scan_id)
                 result_holder["stage"] = "scanning"
                 result_holder["sandbox_path"] = sandbox_path
+                _on_step("clone", "completed", f"staged to sandbox")
 
-                # Phase 2: agent scans the pre-staged repo
-                scan_prompt = f"""@security-analyst Scan the repository at {sandbox_path}
-
-FIRST: export SCAN_ID={scan_id}
-
-Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
-1. Use python3 vuln_scan.py semgrep --path {sandbox_path} --output /sandbox/tmp/semgrep.sarif
-2. Use python3 vuln_scan.py bandit --path {sandbox_path} --output /sandbox/tmp/bandit.json
-
-CRITICAL: Extract COUNTS ONLY:
-- Total: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
-- By severity: `jq '[.runs[0].results[].level] | group_by(.) | map({{(.[0]): length}}) | add' /sandbox/tmp/semgrep.sarif`
-- Top rule IDs: `jq -r '.runs[0].results[].ruleId' /sandbox/tmp/semgrep.sarif | sort | uniq -c | sort -rn | head -5`
-
-Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
-                result_holder["result"] = run_agent(scan_prompt, _sid=scan_id)
+                _, agent_result = run_scan_steps(sandbox_path, scan_id, on_step=_on_step)
+                result_holder["result"] = agent_result
             except Exception as exc:
                 result_holder["error"] = str(exc)
 
@@ -834,11 +824,17 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
         log_lines.append(f"{_ts()} Scan initiated — connecting to Kata VM sandbox")
 
         while scan_thread.is_alive() and time.time() < deadline:
-            events = _poll_progress(scan_id)
-            for ev in events:
-                seen[ev["step"]] = ev
+            # Merge real step events from run_scan_steps via step_events dict
+            for k, ev in step_events.items():
+                if k not in seen or seen[k]["status"] != ev["status"]:
+                    seen[k] = ev
 
-            # Add log lines and track start times for new events
+            # Advance clone when staging completes
+            if not _clone_done and result_holder.get("stage") == "scanning":
+                _clone_done = True
+                seen["clone"] = {"step": "clone", "status": "completed", "detail": "staged to sandbox"}
+
+            # Add log lines for newly seen events
             for key in [k for k, *_ in STEP_CFG]:
                 if key in seen and key not in _prev_seen_keys:
                     ev = seen[key]
@@ -851,16 +847,6 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
                     elif ev["status"] == "failed":
                         log_lines.append(f"{_ts()} ✗ {key.capitalize()} failed")
                     _prev_seen_keys.add(key)
-
-            # Advance clone → done when staging completes
-            if not _clone_done and result_holder.get("stage") == "scanning":
-                _clone_done = True
-                seen["clone"] = {"step": "clone", "status": "completed", "detail": "staged to sandbox"}
-                if "semgrep" not in seen:
-                    seen["semgrep"] = {"step": "semgrep", "status": "started", "detail": None}
-                    _step_start_times["semgrep"] = time.time()
-                    log_lines.append(f"{_ts()} ✓ Clone complete — repo staged to sandbox")
-                    log_lines.append(f"{_ts()} {_STEP_START_MSG['semgrep']}")
 
             # Emit sub-step messages based on elapsed time within each active step
             for key, substeps in _SUBSTEPS.items():
@@ -890,10 +876,9 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
         scan_thread.join()
         log_ph.empty()  # clear log only after scan fully completes
 
-        # Final render
-        events = _poll_progress(scan_id)
-        for ev in events:
-            seen[ev["step"]] = ev
+        # Final render — merge any last events
+        for k, ev in step_events.items():
+            seen[k] = ev
         pipeline_ph.markdown(_pipeline_html(seen, {}), unsafe_allow_html=True)
 
         elapsed = time.time() - _scan_start
