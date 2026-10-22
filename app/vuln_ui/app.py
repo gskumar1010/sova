@@ -908,8 +908,10 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                     )[:5]
 
 # ── SARIF Dashboard ───────────────────────────────────────────────────────────
-if st.session_state.current_sarif:
-    sarif_metrics = parse_sarif(st.session_state.current_sarif)
+# Snapshot SARIF at render time so download button re-run can't clear it
+_sarif = st.session_state.current_sarif
+if _sarif:
+    sarif_metrics = parse_sarif(_sarif)
     total = sarif_metrics["total"]
     sc = sarif_metrics["severity_counts"]
 
@@ -1154,7 +1156,7 @@ if st.session_state.current_sarif:
     st.markdown("<hr>", unsafe_allow_html=True)
     st.download_button(
         label="Download SARIF Report",
-        data=json.dumps(st.session_state.current_sarif, indent=2),
+        data=json.dumps(_sarif, indent=2),
         file_name="sova-report.sarif",
         mime="application/json",
     )

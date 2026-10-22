@@ -276,11 +276,19 @@ def run_scan_steps(sandbox_path: str, scan_id: str, on_step: callable = None) ->
             on_step(step, status, detail)
 
     try:
+        # Locate vuln_scan.py — startup.sh copies to /sandbox/ but may race
+        vs_check = _exec(["sh", "-c",
+            "test -f /sandbox/vuln_scan.py && echo /sandbox/vuln_scan.py "
+            "|| echo /home/user/workspace/vuln_scan.py"],
+            step_timeout=10)
+        vs_path = vs_check.stdout.strip() or "/sandbox/vuln_scan.py"
+        _trace_log(scan_id, f"vuln_scan.py path: {vs_path}")
+
         # ── Step 1: Semgrep ───────────────────────────────────────────────
         _notify("semgrep", "started")
         t0 = time.time()
         r = _exec([
-            "/sandbox/vuln_scan.py", "semgrep",
+            vs_path, "semgrep",
             "--path", sandbox_path,
             "--output", "/sandbox/tmp/semgrep.sarif",
         ], step_timeout=600)
@@ -304,7 +312,7 @@ def run_scan_steps(sandbox_path: str, scan_id: str, on_step: callable = None) ->
         _notify("bandit", "started")
         t0 = time.time()
         r = _exec([
-            "/sandbox/vuln_scan.py", "bandit",
+            vs_path, "bandit",
             "--path", sandbox_path,
             "--output", "/sandbox/tmp/bandit.json",
         ], step_timeout=300)
