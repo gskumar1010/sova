@@ -729,7 +729,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
         pipeline_ph.markdown(_pipeline_html(seen, {"clone": 0}), unsafe_allow_html=True)
         _clone_done = False
 
-        deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
+        deadline = time.time() + int(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "1800"))
         _t0 = time.time()
         log_lines: list = []
         _prev_seen_keys = set()
@@ -855,9 +855,9 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
                 unsafe_allow_html=True,
             )
             time.sleep(1)
-        log_ph.empty()
 
         scan_thread.join()
+        log_ph.empty()  # clear log only after scan fully completes
 
         # Final render
         events = _poll_progress(scan_id)
