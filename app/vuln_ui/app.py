@@ -94,8 +94,15 @@ st.markdown("""
   border-right: 1px solid rgba(0,180,255,0.12) !important;
   backdrop-filter: blur(20px);
 }
-[data-testid="stSidebar"] > div { padding-top: 0 !important; }
-[data-testid="stSidebar"] section { padding-top: 0 !important; }
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebar"] > div > div,
+[data-testid="stSidebar"] > div > div > div,
+[data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] > div {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+.stSidebar > div { padding-top: 0 !important; }
 [data-testid="stHeader"] { background: transparent !important; }
 .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1400px; }
 
