@@ -120,7 +120,7 @@ code, pre { font-family: 'JetBrains Mono', monospace !important; }
   background: linear-gradient(135deg, rgba(0,180,255,0.06) 0%, rgba(8,12,24,0) 60%);
   border: 1px solid rgba(0,180,255,0.15);
   border-radius: 16px;
-  padding: 2rem 2.5rem;
+  padding: 1.25rem 2.5rem 1.75rem;
   margin-bottom: 1.75rem;
 }
 .hero-wrap::before {
@@ -517,13 +517,6 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 _lb64 = _logo_b64()
 with st.sidebar:
-    if _lb64:
-        st.markdown(
-            f'<div style="padding:0.25rem 0 0.5rem;">'
-            f'<img src="data:image/png;base64,{_lb64}" style="width:40px;height:auto;vertical-align:middle;margin-right:0.4rem;">'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
     st.markdown("""
     <div class="sb-logo">
       <div class="sb-logo-title">SOVA</div>
@@ -582,9 +575,11 @@ with st.sidebar:
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 _hero_logo = (
+    f'<div style="text-align:center;margin:0 0 0.75rem 0;">'
     f'<img src="data:image/png;base64,{_lb64}" '
-    f'style="width:52px;height:auto;float:right;margin:0 0 0 1rem;'
-    f'filter:drop-shadow(0 0 8px rgba(0,180,255,0.25));">'
+    f'style="width:68px;height:auto;'
+    f'filter:drop-shadow(0 0 10px rgba(0,180,255,0.3));">'
+    f'</div>'
     if _lb64 else ""
 )
 st.markdown(f"""
