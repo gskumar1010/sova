@@ -517,10 +517,18 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 _lb64 = _logo_b64()
 with st.sidebar:
-    st.markdown("""
-    <div class="sb-logo">
-      <div class="sb-logo-title">SOVA</div>
-      <div class="sb-logo-sub">Sovereign Oversight & Vulnerability Agent</div>
+    _logo_img = (
+        f'<img src="data:image/png;base64,{_lb64}" '
+        f'style="width:44px;height:44px;object-fit:contain;margin-right:0.6rem;flex-shrink:0;">'
+        if _lb64 else ""
+    )
+    st.markdown(f"""
+    <div class="sb-logo" style="display:flex;align-items:center;">
+      {_logo_img}
+      <div>
+        <div class="sb-logo-title">SOVA</div>
+        <div class="sb-logo-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
+      </div>
     </div>
 
     <div class="sb-section">
@@ -574,14 +582,7 @@ with st.sidebar:
                 st.rerun()
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
-_hero_logo = (
-    f'<div style="text-align:center;margin:0 0 0.75rem 0;">'
-    f'<img src="data:image/png;base64,{_lb64}" '
-    f'style="width:68px;height:auto;'
-    f'filter:drop-shadow(0 0 10px rgba(0,180,255,0.3));">'
-    f'</div>'
-    if _lb64 else ""
-)
+_hero_logo = ""  # logo is in sidebar only
 st.markdown(f"""
 <div class="hero-wrap">
   {_hero_logo}
@@ -640,9 +641,9 @@ FIRST: run this command before anything else:
   export SCAN_ID={scan_id}
 
 Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
-1. Use /sandbox/vuln_scan.py clone --url {git_url} --dest /sandbox/tmp/scan
-2. Use /sandbox/vuln_scan.py semgrep --path /sandbox/tmp/scan --output /sandbox/tmp/semgrep.sarif
-3. Use /sandbox/vuln_scan.py bandit --path /sandbox/tmp/scan --output /sandbox/tmp/bandit.json
+1. Use python3 vuln_scan.py clone --url {git_url} --dest /sandbox/tmp/scan
+2. Use python3 vuln_scan.py semgrep --path /sandbox/tmp/scan --output /sandbox/tmp/semgrep.sarif
+3. Use python3 vuln_scan.py bandit --path /sandbox/tmp/scan --output /sandbox/tmp/bandit.json
 
 CRITICAL: Extract COUNTS ONLY - do NOT read detailed findings:
 - Total vulnerabilities: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
@@ -671,8 +672,8 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
 FIRST: export SCAN_ID={scan_id}
 
 Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
-1. Use /sandbox/vuln_scan.py semgrep --path {sandbox_path} --output /sandbox/tmp/semgrep.sarif
-2. Use /sandbox/vuln_scan.py bandit --path {sandbox_path} --output /sandbox/tmp/bandit.json
+1. Use python3 vuln_scan.py semgrep --path {sandbox_path} --output /sandbox/tmp/semgrep.sarif
+2. Use python3 vuln_scan.py bandit --path {sandbox_path} --output /sandbox/tmp/bandit.json
 
 CRITICAL: Extract COUNTS ONLY:
 - Total: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
