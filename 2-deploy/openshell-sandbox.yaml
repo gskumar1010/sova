@@ -33,6 +33,8 @@ spec:
     OPENCODE_DB: ":memory:"
     OPENCODE_CONFIG: "/sandbox/.config/opencode/config.json"
     VULN_API_URL: "VULN_API_URL_PLACEHOLDER"
+    HOME: "/sandbox"
+    SEMGREP_SETTINGS_FILE: "/sandbox/.semgrep/settings.yml"
 
   # Log level
   logLevel: info
