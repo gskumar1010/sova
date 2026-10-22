@@ -10,7 +10,7 @@ import uuid
 
 import requests as _requests
 
-from agent_client import run_agent, stage_and_run, validate_git_url, parse_sarif
+from agent_client import run_agent, stage_and_run, validate_git_url, parse_sarif, get_trace
 
 ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
 
@@ -592,9 +592,11 @@ if "current_sarif" not in st.session_state:
 if "scan_duration" not in st.session_state:
     st.session_state.scan_duration = None
 if "scan_history" not in st.session_state:
-    st.session_state.scan_history = []   # list of {url, sarif, duration, risk, ts}
+    st.session_state.scan_history = []
 if "egress_blocked" not in st.session_state:
     st.session_state.egress_blocked = False
+if "last_scan_id" not in st.session_state:
+    st.session_state.last_scan_id = None
 
 # ── Scan input ────────────────────────────────────────────────────────────────
 st.markdown('<div class="scan-label">Repository URL</div>', unsafe_allow_html=True)
@@ -614,6 +616,7 @@ if scan_clicked and git_url:
         st.error(f"Invalid URL: {error_msg}")
     else:
         scan_id = str(uuid.uuid4())
+        st.session_state.last_scan_id = scan_id
         prompt = f"""@security-analyst Scan this repository: {git_url}
 
 FIRST: run this command before anything else:
@@ -660,7 +663,7 @@ CRITICAL: Extract COUNTS ONLY:
 - Top rule IDs: `jq -r '.runs[0].results[].ruleId' /sandbox/tmp/semgrep.sarif | sort | uniq -c | sort -rn | head -5`
 
 Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
-                result_holder["result"] = run_agent(scan_prompt)
+                result_holder["result"] = run_agent(scan_prompt, _sid=scan_id)
             except Exception as exc:
                 result_holder["error"] = str(exc)
 
@@ -1169,3 +1172,9 @@ if st.session_state.history:
 
 # ── Custom prompt ─────────────────────────────────────────────────────────────
 st.chat_input("Send a custom prompt to the security agent...")
+
+# ── Debug trace log ───────────────────────────────────────────────────────────
+if st.session_state.get("last_scan_id"):
+    with st.expander("🔍 Session Trace Log", expanded=False):
+        trace = get_trace(st.session_state.last_scan_id)
+        st.code(trace, language=None)

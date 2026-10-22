@@ -8,18 +8,47 @@ import os
 import re
 import io
 import json
+import time
 import base64
 import tarfile
 import tempfile
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
+
+# Per-session trace log — written to /tmp/sova_trace_<scan_id>.log
+_log = logging.getLogger("sova.agent")
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+
+def _trace_log(scan_id: str, msg: str) -> None:
+    """Append a line to the per-session trace file and the Python logger."""
+    _log.debug("[%s] %s", scan_id[:8], msg)
+    try:
+        with open(f"/tmp/sova_trace_{scan_id}.log", "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
+
+
+def get_trace(scan_id: str) -> str:
+    """Return the full trace log for a scan session."""
+    try:
+        with open(f"/tmp/sova_trace_{scan_id}.log") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "(no trace log yet)"
 
 BLOCKED_RE = re.compile(r"policy_denied|egress.*blocked|connection refused|host not allowed", re.IGNORECASE)
 MAX_REPO_MB = 200
 
 
-def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout: float) -> str:
+def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout: float, scan_id: str = "") -> str:
     """Clone repo in the UI pod (full internet), tar+base64 it, extract into sandbox.
 
     Returns the sandbox path where the repo landed (/sandbox/tmp/scan).
@@ -27,34 +56,34 @@ def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout:
     """
     import git
 
+    _trace_log(scan_id, f"stage_repo: cloning {git_url}")
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
             env = os.environ.copy()
-            env["GIT_TERMINAL_PROMPT"] = "0"   # never prompt for credentials
-            env["GIT_ASKPASS"] = "echo"         # return empty string for any auth prompt
-            git.Repo.clone_from(
-                git_url, tmpdir,
-                depth=1, single_branch=True,
-                env=env,
-            )
+            env["GIT_TERMINAL_PROMPT"] = "0"
+            env["GIT_ASKPASS"] = "echo"
+            git.Repo.clone_from(git_url, tmpdir, depth=1, single_branch=True, env=env)
+            _trace_log(scan_id, "Clone succeeded")
         except git.exc.GitCommandError as e:
+            _trace_log(scan_id, f"Clone FAILED: {e}")
             raise RuntimeError(f"Clone failed: {e}") from e
 
-        # Check size
         total = sum(f.stat().st_size for f in __import__('pathlib').Path(tmpdir).rglob('*') if f.is_file())
+        _trace_log(scan_id, f"Repo size: {total//1024//1024} MB")
         if total > MAX_REPO_MB * 1024 * 1024:
-            raise RuntimeError(f"Repository too large ({total // (1024*1024)} MB, limit {MAX_REPO_MB} MB)")
+            raise RuntimeError(f"Repository too large ({total//1024//1024} MB, limit {MAX_REPO_MB} MB)")
 
-        # Build compressed tar (exclude .git, max compression)
         buf = io.BytesIO()
         with tarfile.open(fileobj=buf, mode='w:gz', compresslevel=9) as tar:
             tar.add(tmpdir, arcname='scan',
                     filter=lambda m: None if '/.git' in m.name else m)
         raw = buf.getvalue()
+        _trace_log(scan_id, f"Compressed tar size: {len(raw)//1024} KB, {len(raw)//4000 + 1} chunks to send")
 
-    # Transfer raw bytes using Python one-liners per chunk.
-    # 4000 bytes → repr ≤ ~20 000 chars → safely under 32 KB gRPC arg limit.
     CHUNK = 4000
+    n_chunks = len(raw) // CHUNK + 1
+    _trace_log(scan_id, f"Sending {n_chunks} chunks to sandbox...")
+    t0 = time.time()
     client.exec(
         sandbox=sandbox_name,
         command=['sh', '-c', 'mkdir -p /sandbox/tmp && rm -f /sandbox/tmp/_repo.tar.gz'],
@@ -67,20 +96,19 @@ def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout:
             f"f.write(bytes({list(chunk_bytes)}));"
             "f.close()"
         )
-        client.exec(
-            sandbox=sandbox_name,
-            command=['python3', '-c', py],
-            workspace=workspace, timeout_seconds=15, no_login_shell=True,
-        )
-    # Extract
-    client.exec(
+        client.exec(sandbox=sandbox_name, command=['python3', '-c', py],
+                    workspace=workspace, timeout_seconds=15, no_login_shell=True)
+    _trace_log(scan_id, f"Transfer done in {time.time()-t0:.1f}s — extracting...")
+    r = client.exec(
         sandbox=sandbox_name,
         command=['sh', '-c',
                  'rm -rf /sandbox/tmp/scan && '
                  'tar xz -f /sandbox/tmp/_repo.tar.gz -C /sandbox/tmp && '
-                 'rm /sandbox/tmp/_repo.tar.gz'],
+                 'rm /sandbox/tmp/_repo.tar.gz && '
+                 'ls /sandbox/tmp/scan | head -5'],
         workspace=workspace, timeout_seconds=60, no_login_shell=True,
     )
+    _trace_log(scan_id, f"Extract exit={r.exit_code} top-files: {r.stdout.strip()[:100]}")
     return '/sandbox/tmp/scan'
 
 # Allowlisted git hosting domains
@@ -197,7 +225,7 @@ class AgentResult:
     sarif_data: Optional[Dict[str, Any]] = None
 
 
-def stage_and_run(git_url: str, scan_id: str = "") -> "tuple[str, AgentResult]":
+def stage_and_run(git_url: str, scan_id: str = "") -> str:
     """Clone repo in UI pod, stage to sandbox, return (sandbox_path, AgentResult).
 
     Returns the sandbox path and a stub AgentResult(text='staged') so the
@@ -216,15 +244,19 @@ def stage_and_run(git_url: str, scan_id: str = "") -> "tuple[str, AgentResult]":
     port = parsed.port or 80
     endpoint = f"{host}:{port}"
 
+    _trace_log(scan_id, f"stage_and_run: git_url={git_url} sandbox={sandbox_name} gateway={endpoint} timeout={timeout}")
     client = SandboxClient(endpoint=endpoint, tls=None, bearer_token=None, timeout=timeout)
     try:
-        path = stage_repo(git_url, client, sandbox_name, workspace, timeout)
+        _trace_log(scan_id, "Cloning repo in UI pod...")
+        t0 = time.time()
+        path = stage_repo(git_url, client, sandbox_name, workspace, timeout, scan_id=scan_id)
+        _trace_log(scan_id, f"Staged to {path} in {time.time()-t0:.1f}s")
     finally:
         client.close()
     return path
 
 
-def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
+def run_agent(prompt: str, scan_id: str = "", _sid: str = "") -> AgentResult:
     """Execute the vulnerability scanning agent using OpenShell Python API."""
     import logging
     logger = logging.getLogger(__name__)
@@ -239,7 +271,9 @@ def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
     timeout = int(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "120"))
     workspace = os.environ.get("OPENSHELL_WORKSPACE", "default")
 
+    sid = _sid or scan_id
     logger.info(f"run_agent: sandbox={sandbox_name}, timeout={timeout}s, prompt_len={len(prompt)}")
+    _trace_log(sid, f"run_agent: sandbox={sandbox_name} timeout={timeout}s gateway={gateway_endpoint}")
 
     # Parse gateway endpoint (format: http://host:port or https://host:port)
     # Extract host:port for gRPC connection
@@ -259,6 +293,8 @@ def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
     try:
         # Execute command in existing sandbox
         # Command: opencode run <prompt>
+        _trace_log(sid, f"exec: opencode run (prompt_len={len(prompt)})")
+        t0 = time.time()
         result = client.exec(
             sandbox=sandbox_name,
             command=["opencode", "run", prompt],
@@ -266,13 +302,18 @@ def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
             timeout_seconds=timeout,
             no_login_shell=True,
         )
+        elapsed = time.time() - t0
 
-        # Extract output - result.stdout and result.stderr are already strings
         stdout = result.stdout if result.stdout else ""
         stderr = result.stderr if result.stderr else ""
         raw = stdout + stderr
 
         logger.info(f"Agent completed: exit_code={result.exit_code}, stdout_len={len(stdout)}, stderr_len={len(stderr)}")
+        _trace_log(sid, f"exec done: exit={result.exit_code} elapsed={elapsed:.1f}s stdout_len={len(stdout)} stderr_len={len(stderr)}")
+        if stderr.strip():
+            _trace_log(sid, f"STDERR: {stderr[:500]}")
+        if stdout.strip():
+            _trace_log(sid, f"STDOUT[:500]: {stdout[:500]}")
 
         # Check exit code - if non-zero, prepend error message
         if result.exit_code != 0:
