@@ -94,7 +94,8 @@ st.markdown("""
   border-right: 1px solid rgba(0,180,255,0.12) !important;
   backdrop-filter: blur(20px);
 }
-[data-testid="stSidebar"] > div { padding-top: 0.25rem; }
+[data-testid="stSidebar"] > div { padding-top: 0 !important; }
+[data-testid="stSidebar"] section { padding-top: 0 !important; }
 [data-testid="stHeader"] { background: transparent !important; }
 .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1400px; }
 
@@ -523,7 +524,7 @@ with st.sidebar:
         if _lb64 else ""
     )
     st.markdown(f"""
-    <div class="sb-logo" style="text-align:center;padding-top:0.1rem;">
+    <div class="sb-logo" style="text-align:center;padding-top:0;margin-top:0;">
       {_logo_img}
       <div class="sb-logo-title">SOVA</div>
       <div class="sb-logo-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
