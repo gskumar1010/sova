@@ -332,14 +332,26 @@ def run_agent(prompt: str, scan_id: str = "", _sid: str = "") -> AgentResult:
         if not text.strip() and raw.strip():
             text = f"**Debug: Cleaned output was empty, showing raw output:**\n\n{raw[:2000]}"
 
-        # Try to extract SARIF data if present in output
+        # Read SARIF directly from sandbox — more reliable than parsing agent stdout
         sarif_data = None
         try:
-            json_match = re.search(r'\{[^{}]*"version"\s*:\s*"2\.1\.0"[^{}]*\}', raw, re.DOTALL)
-            if json_match:
-                sarif_data = json.loads(json_match.group(0))
-        except (json.JSONDecodeError, AttributeError):
-            pass
+            sarif_result = client.exec(
+                sandbox=sandbox_name,
+                command=["cat", "/sandbox/tmp/semgrep.sarif"],
+                workspace=workspace,
+                timeout_seconds=30,
+                no_login_shell=True,
+            )
+            if sarif_result.exit_code == 0 and sarif_result.stdout.strip():
+                sarif_data = json.loads(sarif_result.stdout)
+                _trace_log(sid, f"SARIF read directly: {len(sarif_data.get('runs',[{}])[0].get('results',[]))} findings")
+            else:
+                # Fallback: try regex on raw output
+                json_match = re.search(r'\{[^{}]*"version"\s*:\s*"2\.1\.0"[^{}]*\}', raw, re.DOTALL)
+                if json_match:
+                    sarif_data = json.loads(json_match.group(0))
+        except Exception as e:
+            _trace_log(sid, f"SARIF read error: {e}")
 
         return AgentResult(text=text, egress_blocked=blocked, raw=raw, sarif_data=sarif_data)
 
