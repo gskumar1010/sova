@@ -80,31 +80,34 @@ def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout:
         raw = buf.getvalue()
         _trace_log(scan_id, f"Compressed tar size: {len(raw)//1024} KB, {len(raw)//4000 + 1} chunks to send")
 
-    CHUNK = 4000
-    n_chunks = len(raw) // CHUNK + 1
-    _trace_log(scan_id, f"Sending {n_chunks} chunks to sandbox...")
+    # Base64 encode for reliable transfer (handles binary data correctly)
+    b64 = base64.b64encode(raw).decode('ascii')
+    # Use 20KB chunks to stay well under 32KB gRPC limit (base64 is ~1.33x larger)
+    CHUNK = 20000
+    n_chunks = len(b64) // CHUNK + 1
+    _trace_log(scan_id, f"Sending {n_chunks} base64 chunks to sandbox...")
     t0 = time.time()
     client.exec(
         sandbox=sandbox_name,
-        command=['sh', '-c', 'mkdir -p /sandbox/tmp && rm -f /sandbox/tmp/_repo.tar.gz'],
+        command=['sh', '-c', 'mkdir -p /sandbox/tmp && rm -f /sandbox/tmp/_repo.b64'],
         workspace=workspace, timeout_seconds=10, no_login_shell=True,
     )
-    for i in range(0, len(raw), CHUNK):
-        chunk_bytes = raw[i:i + CHUNK]
-        py = (
-            "f=open('/sandbox/tmp/_repo.tar.gz','ab');"
-            f"f.write(bytes({list(chunk_bytes)}));"
-            "f.close()"
+    # Send chunks and append to base64 file
+    for i in range(0, len(b64), CHUNK):
+        chunk = b64[i:i + CHUNK]
+        cmd = f'printf "%s" "{chunk}" >> /sandbox/tmp/_repo.b64' if i > 0 else f'printf "%s" "{chunk}" > /sandbox/tmp/_repo.b64'
+        client.exec(
+            sandbox=sandbox_name,
+            command=['sh', '-c', cmd],
+            workspace=workspace, timeout_seconds=15, no_login_shell=True
         )
-        client.exec(sandbox=sandbox_name, command=['python3', '-c', py],
-                    workspace=workspace, timeout_seconds=15, no_login_shell=True)
     _trace_log(scan_id, f"Transfer done in {time.time()-t0:.1f}s — extracting...")
     r = client.exec(
         sandbox=sandbox_name,
         command=['sh', '-c',
                  'rm -rf /sandbox/tmp/scan && '
-                 'tar xz -f /sandbox/tmp/_repo.tar.gz -C /sandbox/tmp && '
-                 'rm /sandbox/tmp/_repo.tar.gz && '
+                 'base64 -d /sandbox/tmp/_repo.b64 | tar xz -C /sandbox/tmp && '
+                 'rm /sandbox/tmp/_repo.b64 && '
                  'ls /sandbox/tmp/scan | head -5'],
         workspace=workspace, timeout_seconds=60, no_login_shell=True,
     )
