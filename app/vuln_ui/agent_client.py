@@ -89,7 +89,7 @@ def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout:
     t0 = time.time()
     client.exec(
         sandbox=sandbox_name,
-        command=['sh', '-c', 'mkdir -p /sandbox/tmp && rm -f /sandbox/tmp/_repo.b64'],
+        command=['sh', '-c', 'mkdir -p /sandbox/tmp && rm -f /sandbox/tmp/_repo.b64 /sandbox/code_graph_output.json /sandbox/*.sarif'],
         workspace=workspace, timeout_seconds=10, no_login_shell=True,
     )
     # Send chunks and append to base64 file

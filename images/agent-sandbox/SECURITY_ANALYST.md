@@ -23,6 +23,7 @@ ls -la /sandbox/vuln_scan.py
    ```bash
    /sandbox/vuln_scan.py build-graph --path /sandbox/tmp/scan --output /sandbox/tmp/graph.json
    ```
+   **CRITICAL**: ALWAYS rebuild the code graph for each NEW repository. DO NOT reuse old graph files.
    This builds a map of all code: imports, functions, calls, entry points
 3. **Run Scanners**: Execute Semgrep, Bandit via vuln_scan.py
 4. **Filter by Reachability** (NEW - Critical Step):
