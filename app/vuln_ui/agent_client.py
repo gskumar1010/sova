@@ -29,7 +29,14 @@ def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout:
 
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
-            git.Repo.clone_from(git_url, tmpdir, depth=1, single_branch=True)
+            env = os.environ.copy()
+            env["GIT_TERMINAL_PROMPT"] = "0"   # never prompt for credentials
+            env["GIT_ASKPASS"] = "echo"         # return empty string for any auth prompt
+            git.Repo.clone_from(
+                git_url, tmpdir,
+                depth=1, single_branch=True,
+                env=env,
+            )
         except git.exc.GitCommandError as e:
             raise RuntimeError(f"Clone failed: {e}") from e
 
