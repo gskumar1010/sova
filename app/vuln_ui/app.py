@@ -10,7 +10,14 @@ import uuid
 
 import requests as _requests
 
+import base64
+from pathlib import Path
+
 from agent_client import run_agent, stage_and_run, validate_git_url, parse_sarif, get_trace
+
+def _logo_b64() -> str:
+    p = Path(__file__).parent / "sova_logo.png"
+    return base64.b64encode(p.read_bytes()).decode() if p.exists() else ""
 
 ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
 
@@ -60,7 +67,7 @@ def _poll_progress(scan_id: str) -> list:
         return []
 
 st.set_page_config(
-    page_title="SOVA — Sovereign Oversight & Vulnerability Analysis",
+    page_title="SOVA — Sovereign Vulnerability Analysis",
     page_icon="🛡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -508,10 +515,18 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 """, unsafe_allow_html=True)
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
+_lb64 = _logo_b64()
 with st.sidebar:
+    if _lb64:
+        st.markdown(
+            f'<div style="text-align:center;padding:0.5rem 0 0.75rem;">'
+            f'<img src="data:image/png;base64,{_lb64}" style="width:96px;height:auto;">'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     st.markdown("""
     <div class="sb-logo">
-      <div class="sb-logo-title">🛡 SOVA</div>
+      <div class="sb-logo-title">SOVA</div>
       <div class="sb-logo-sub">Sovereign Oversight & Vulnerability Agent</div>
     </div>
 
@@ -566,8 +581,15 @@ with st.sidebar:
                 st.rerun()
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
-st.markdown("""
+_hero_logo = (
+    f'<img src="data:image/png;base64,{_lb64}" '
+    f'style="width:90px;height:auto;float:right;margin:-0.5rem -0.5rem 0 1rem;'
+    f'filter:drop-shadow(0 0 12px rgba(0,180,255,0.3));">'
+    if _lb64 else ""
+)
+st.markdown(f"""
 <div class="hero-wrap">
+  {_hero_logo}
   <div class="hero-grid-text">[ KATA VM ] [ OPENSHELL ] [ RHOAI ]<br>EGRESS POLICY: ENFORCE<br>SANDBOX: ACTIVE</div>
   <div class="hero-eyebrow">Red Hat OpenShift AI · DEMOJam 2027</div>
   <div class="hero-title">Sovereign Oversight &amp;<br>Vulnerability Agent</div>
