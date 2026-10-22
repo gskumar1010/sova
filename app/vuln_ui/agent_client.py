@@ -280,7 +280,7 @@ def run_scan_steps(sandbox_path: str, scan_id: str, on_step: callable = None) ->
         _notify("semgrep", "started")
         t0 = time.time()
         r = _exec([
-            "python3", "/sandbox/vuln_scan.py", "semgrep",
+            "/sandbox/vuln_scan.py", "semgrep",
             "--path", sandbox_path,
             "--output", "/sandbox/tmp/semgrep.sarif",
         ], step_timeout=600)
@@ -304,7 +304,7 @@ def run_scan_steps(sandbox_path: str, scan_id: str, on_step: callable = None) ->
         _notify("bandit", "started")
         t0 = time.time()
         r = _exec([
-            "python3", "/sandbox/vuln_scan.py", "bandit",
+            "/sandbox/vuln_scan.py", "bandit",
             "--path", sandbox_path,
             "--output", "/sandbox/tmp/bandit.json",
         ], step_timeout=300)
