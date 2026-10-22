@@ -9,7 +9,7 @@ import uuid
 
 import requests as _requests
 
-from agent_client import run_agent, validate_git_url, parse_sarif
+from agent_client import run_agent, stage_and_run, validate_git_url, parse_sarif
 
 ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
 
@@ -638,7 +638,28 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
 
         def _run_scan():
             try:
-                result_holder["result"] = run_agent(prompt)
+                # Phase 1: clone in UI pod, transfer to sandbox (bypasses Kata VM DNS)
+                result_holder["stage"] = "cloning"
+                sandbox_path = stage_and_run(git_url)
+                result_holder["stage"] = "scanning"
+                result_holder["sandbox_path"] = sandbox_path
+
+                # Phase 2: agent scans the pre-staged repo
+                scan_prompt = f"""@security-analyst Scan the repository at {sandbox_path}
+
+FIRST: export SCAN_ID={scan_id}
+
+Follow the Security Analyst workflow from /sandbox/.agents/security-analyst.md:
+1. Use python3 vuln_scan.py semgrep --path {sandbox_path} --output /sandbox/tmp/semgrep.sarif
+2. Use python3 vuln_scan.py bandit --path {sandbox_path} --output /sandbox/tmp/bandit.json
+
+CRITICAL: Extract COUNTS ONLY:
+- Total: `jq '.runs[0].results | length' /sandbox/tmp/semgrep.sarif`
+- By severity: `jq '[.runs[0].results[].level] | group_by(.) | map({{(.[0]): length}}) | add' /sandbox/tmp/semgrep.sarif`
+- Top rule IDs: `jq -r '.runs[0].results[].ruleId' /sandbox/tmp/semgrep.sarif | sort | uniq -c | sort -rn | head -5`
+
+Report ONLY: total count, severity breakdown, and top 5 rule IDs."""
+                result_holder["result"] = run_agent(scan_prompt)
             except Exception as exc:
                 result_holder["error"] = str(exc)
 
@@ -703,9 +724,10 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
         pipeline_ph = st.empty()
         log_ph = st.empty()
 
-        # Start with Clone active so user knows it's running
+        # Start with Clone active
         seen: dict = {"clone": {"step": "clone", "status": "started", "detail": None}}
         pipeline_ph.markdown(_pipeline_html(seen, {"clone": 0}), unsafe_allow_html=True)
+        _clone_done = False
 
         deadline = time.time() + sum(t for *_, t in STEP_CFG) + 30
         _t0 = time.time()
@@ -798,6 +820,16 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                     elif ev["status"] == "failed":
                         log_lines.append(f"{_ts()} ✗ {key.capitalize()} failed")
                     _prev_seen_keys.add(key)
+
+            # Advance clone → done when staging completes
+            if not _clone_done and result_holder.get("stage") == "scanning":
+                _clone_done = True
+                seen["clone"] = {"step": "clone", "status": "completed", "detail": "staged to sandbox"}
+                if "semgrep" not in seen:
+                    seen["semgrep"] = {"step": "semgrep", "status": "started", "detail": None}
+                    _step_start_times["semgrep"] = time.time()
+                    log_lines.append(f"{_ts()} ✓ Clone complete — repo staged to sandbox")
+                    log_lines.append(f"{_ts()} {_STEP_START_MSG['semgrep']}")
 
             # Emit sub-step messages based on elapsed time within each active step
             for key, substeps in _SUBSTEPS.items():

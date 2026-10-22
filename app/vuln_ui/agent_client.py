@@ -6,12 +6,72 @@ so every agent invocation runs under the OpenShell policy proxy inside the Kata 
 """
 import os
 import re
+import io
 import json
+import base64
+import tarfile
+import tempfile
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 
 BLOCKED_RE = re.compile(r"policy_denied|egress.*blocked|connection refused|host not allowed", re.IGNORECASE)
+MAX_REPO_MB = 200
+
+
+def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout: float) -> str:
+    """Clone repo in the UI pod (full internet), tar+base64 it, extract into sandbox.
+
+    Returns the sandbox path where the repo landed (/sandbox/tmp/scan).
+    Raises on clone failure, size limit exceeded, or transfer error.
+    """
+    import git
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            git.Repo.clone_from(git_url, tmpdir, depth=1, single_branch=True)
+        except git.exc.GitCommandError as e:
+            raise RuntimeError(f"Clone failed: {e}") from e
+
+        # Check size
+        total = sum(f.stat().st_size for f in __import__('pathlib').Path(tmpdir).rglob('*') if f.is_file())
+        if total > MAX_REPO_MB * 1024 * 1024:
+            raise RuntimeError(f"Repository too large ({total // (1024*1024)} MB, limit {MAX_REPO_MB} MB)")
+
+        # Build in-memory tar.gz
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode='w:gz') as tar:
+            tar.add(tmpdir, arcname='scan')
+        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+
+    # Transfer to sandbox: write b64 as a file, decode, extract
+    # Split into chunks to stay under arg length limits
+    CHUNK = 65536
+    chunks = [b64[i:i+CHUNK] for i in range(0, len(b64), CHUNK)]
+
+    # First chunk: create the file
+    client.exec(
+        sandbox=sandbox_name,
+        command=['sh', '-c', f'printf "%s" "{chunks[0]}" > /sandbox/tmp/_repo.b64'],
+        workspace=workspace, timeout_seconds=30, no_login_shell=True,
+    )
+    # Remaining chunks: append
+    for chunk in chunks[1:]:
+        client.exec(
+            sandbox=sandbox_name,
+            command=['sh', '-c', f'printf "%s" "{chunk}" >> /sandbox/tmp/_repo.b64'],
+            workspace=workspace, timeout_seconds=30, no_login_shell=True,
+        )
+    # Decode and extract
+    client.exec(
+        sandbox=sandbox_name,
+        command=['sh', '-c',
+                 'rm -rf /sandbox/tmp/scan && '
+                 'base64 -d /sandbox/tmp/_repo.b64 | tar xz -C /sandbox/tmp && '
+                 'rm /sandbox/tmp/_repo.b64'],
+        workspace=workspace, timeout_seconds=120, no_login_shell=True,
+    )
+    return '/sandbox/tmp/scan'
 
 # Allowlisted git hosting domains
 ALLOWED_GIT_HOSTS = ["github.com", "gitlab.com", "bitbucket.org"]
@@ -125,6 +185,33 @@ class AgentResult:
     egress_blocked: bool
     raw: str
     sarif_data: Optional[Dict[str, Any]] = None
+
+
+def stage_and_run(git_url: str, scan_id: str = "") -> "tuple[str, AgentResult]":
+    """Clone repo in UI pod, stage to sandbox, return (sandbox_path, AgentResult).
+
+    Returns the sandbox path and a stub AgentResult(text='staged') so the
+    caller knows where the repo landed before running the real scan prompt.
+    Used to bypass the broken DNS inside the Kata VM.
+    """
+    from openshell.sandbox import SandboxClient
+
+    sandbox_name = os.environ.get("SANDBOX_NAME", "opencode-dual")
+    gateway_endpoint = os.environ.get("OPENSHELL_GATEWAY_ENDPOINT", "http://openshell-kata:8080")
+    timeout = float(os.environ.get("OPENSHELL_EXEC_TIMEOUT", "1800"))
+    workspace = os.environ.get("OPENSHELL_WORKSPACE", "default")
+
+    parsed = urlparse(gateway_endpoint)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 80
+    endpoint = f"{host}:{port}"
+
+    client = SandboxClient(endpoint=endpoint, tls=None, bearer_token=None, timeout=timeout)
+    try:
+        path = stage_repo(git_url, client, sandbox_name, workspace, timeout)
+    finally:
+        client.close()
+    return path
 
 
 def run_agent(prompt: str, scan_id: str = "") -> AgentResult:
