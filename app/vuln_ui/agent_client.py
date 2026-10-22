@@ -45,38 +45,41 @@ def stage_repo(git_url: str, client, sandbox_name: str, workspace: str, timeout:
         if total > MAX_REPO_MB * 1024 * 1024:
             raise RuntimeError(f"Repository too large ({total // (1024*1024)} MB, limit {MAX_REPO_MB} MB)")
 
-        # Build in-memory tar.gz
+        # Build compressed tar (exclude .git, max compression)
         buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode='w:gz') as tar:
-            tar.add(tmpdir, arcname='scan')
-        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+        with tarfile.open(fileobj=buf, mode='w:gz', compresslevel=9) as tar:
+            tar.add(tmpdir, arcname='scan',
+                    filter=lambda m: None if '/.git' in m.name else m)
+        raw = buf.getvalue()
 
-    # Transfer to sandbox: write b64 as a file, decode, extract
-    # Split into chunks to stay under arg length limits
-    CHUNK = 65536
-    chunks = [b64[i:i+CHUNK] for i in range(0, len(b64), CHUNK)]
-
-    # First chunk: create the file
+    # Transfer raw bytes using Python one-liners per chunk.
+    # 4000 bytes → repr ≤ ~20 000 chars → safely under 32 KB gRPC arg limit.
+    CHUNK = 4000
     client.exec(
         sandbox=sandbox_name,
-        command=['sh', '-c', f'printf "%s" "{chunks[0]}" > /sandbox/tmp/_repo.b64'],
-        workspace=workspace, timeout_seconds=30, no_login_shell=True,
+        command=['sh', '-c', 'mkdir -p /sandbox/tmp && rm -f /sandbox/tmp/_repo.tar.gz'],
+        workspace=workspace, timeout_seconds=10, no_login_shell=True,
     )
-    # Remaining chunks: append
-    for chunk in chunks[1:]:
+    for i in range(0, len(raw), CHUNK):
+        chunk_bytes = raw[i:i + CHUNK]
+        py = (
+            "f=open('/sandbox/tmp/_repo.tar.gz','ab');"
+            f"f.write(bytes({list(chunk_bytes)}));"
+            "f.close()"
+        )
         client.exec(
             sandbox=sandbox_name,
-            command=['sh', '-c', f'printf "%s" "{chunk}" >> /sandbox/tmp/_repo.b64'],
-            workspace=workspace, timeout_seconds=30, no_login_shell=True,
+            command=['python3', '-c', py],
+            workspace=workspace, timeout_seconds=15, no_login_shell=True,
         )
-    # Decode and extract
+    # Extract
     client.exec(
         sandbox=sandbox_name,
         command=['sh', '-c',
                  'rm -rf /sandbox/tmp/scan && '
-                 'base64 -d /sandbox/tmp/_repo.b64 | tar xz -C /sandbox/tmp && '
-                 'rm /sandbox/tmp/_repo.b64'],
-        workspace=workspace, timeout_seconds=120, no_login_shell=True,
+                 'tar xz -f /sandbox/tmp/_repo.tar.gz -C /sandbox/tmp && '
+                 'rm /sandbox/tmp/_repo.tar.gz'],
+        workspace=workspace, timeout_seconds=60, no_login_shell=True,
     )
     return '/sandbox/tmp/scan'
 
