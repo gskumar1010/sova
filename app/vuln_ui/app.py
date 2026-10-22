@@ -519,8 +519,8 @@ _lb64 = _logo_b64()
 with st.sidebar:
     if _lb64:
         st.markdown(
-            f'<div style="text-align:center;padding:0.5rem 0 0.75rem;">'
-            f'<img src="data:image/png;base64,{_lb64}" style="width:96px;height:auto;">'
+            f'<div style="padding:0.25rem 0 0.5rem;">'
+            f'<img src="data:image/png;base64,{_lb64}" style="width:40px;height:auto;vertical-align:middle;margin-right:0.4rem;">'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -583,8 +583,8 @@ with st.sidebar:
 # ── Hero ──────────────────────────────────────────────────────────────────────
 _hero_logo = (
     f'<img src="data:image/png;base64,{_lb64}" '
-    f'style="width:90px;height:auto;float:right;margin:-0.5rem -0.5rem 0 1rem;'
-    f'filter:drop-shadow(0 0 12px rgba(0,180,255,0.3));">'
+    f'style="width:52px;height:auto;float:right;margin:0 0 0 1rem;'
+    f'filter:drop-shadow(0 0 8px rgba(0,180,255,0.25));">'
     if _lb64 else ""
 )
 st.markdown(f"""
