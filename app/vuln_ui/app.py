@@ -103,8 +103,8 @@ st.markdown("""
   justify-content: space-between;
   background: linear-gradient(90deg, rgba(5,8,16,0.99) 0%, rgba(0,25,50,0.96) 100%);
   border-bottom: 1px solid rgba(0,180,255,0.15);
-  padding: 0.65rem 1.5rem;
-  margin: -0.25rem -2rem 1.25rem -2rem;
+  padding: 0.65rem 2rem;
+  margin: -0.25rem -10rem 1.25rem -10rem;
   flex-wrap: wrap; gap: 0.5rem;
 }
 .topbanner-left { display: flex; align-items: center; gap: 0.75rem; }
