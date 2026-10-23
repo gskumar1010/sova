@@ -70,7 +70,7 @@ st.set_page_config(
     page_title="SOVA — Sovereign Vulnerability Analysis",
     page_icon="🛡",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
@@ -89,19 +89,29 @@ st.markdown("""
   background-size: 100% 100%, 40px 40px, 40px 40px;
 }
 
-[data-testid="stSidebar"] {
-  background: rgba(8,12,24,0.95) !important;
-  border-right: 1px solid rgba(0,180,255,0.12) !important;
-  backdrop-filter: blur(20px);
-}
-/* Pull sidebar content up past Streamlit's built-in header bar */
-[data-testid="stSidebarContent"] {
-  padding-top: 0 !important;
-  margin-top: -3.5rem !important;
-}
-[data-testid="stSidebar"] > div { padding-top: 0 !important; }
+/* ── Hide sidebar entirely ── */
+[data-testid="stSidebar"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] { display: none !important; }
+
 [data-testid="stHeader"] { background: transparent !important; }
-.block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1400px; }
+.block-container { padding: 0.25rem 2rem 3rem !important; max-width: 1400px; }
+
+/* ── Top Banner ── */
+.topbanner {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, rgba(5,8,16,0.99) 0%, rgba(0,25,50,0.96) 100%);
+  border-bottom: 1px solid rgba(0,180,255,0.15);
+  padding: 0.65rem 1.5rem;
+  margin: -0.25rem -2rem 1.25rem -2rem;
+  flex-wrap: wrap; gap: 0.5rem;
+}
+.topbanner-left { display: flex; align-items: center; gap: 0.75rem; }
+.topbanner-brand { line-height: 1.2; }
+.topbanner-title { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.3px; }
+.topbanner-sub { font-size: 0.65rem; color: #475569; }
+.topbanner-right { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 
 /* ── Global typography ── */
 html, body, [class*="css"] {
@@ -119,57 +129,7 @@ code, pre { font-family: 'JetBrains Mono', monospace !important; }
 /* ═══════════════════════════════════════════
    HERO
 ═══════════════════════════════════════════ */
-.hero-wrap {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(0,180,255,0.06) 0%, rgba(8,12,24,0) 60%);
-  border: 1px solid rgba(0,180,255,0.15);
-  border-radius: 16px;
-  padding: 1.25rem 2.5rem 1.75rem;
-  margin-bottom: 1.75rem;
-}
-.hero-wrap::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 60% 80% at 0% 50%, rgba(0,180,255,0.07) 0%, transparent 70%);
-  pointer-events: none;
-}
-.hero-grid-text {
-  font-size: 0.68rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: rgba(0,180,255,0.2);
-  position: absolute;
-  top: 1rem; right: 1.5rem;
-  text-align: right;
-  line-height: 1.6;
-  letter-spacing: 0.05em;
-}
-.hero-eyebrow {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: #00b4ff;
-  margin-bottom: 0.5rem;
-}
-.hero-title {
-  font-size: 2.6rem;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -1px;
-  margin: 0 0 0.4rem;
-  background: linear-gradient(90deg, #f1f5f9 30%, #00b4ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero-sub {
-  font-size: 0.88rem;
-  color: #64748b;
-  margin-bottom: 1.1rem;
-  max-width: 560px;
-}
+/* hero-wrap removed — replaced by topbanner */
 .pill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .pill {
   display: inline-flex; align-items: center; gap: 0.4rem;
@@ -519,88 +479,27 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Top banner ────────────────────────────────────────────────────────────────
 _lb64 = _logo_b64()
-with st.sidebar:
-    _logo_img = (
-        f'<img src="data:image/png;base64,{_lb64}" '
-        f'style="width:64px;height:auto;display:block;margin:0 auto 0.4rem;">'
-        if _lb64 else ""
-    )
-    st.markdown(f"""
-    <div class="sb-logo" style="text-align:center;padding-top:0;margin-top:0;">
-      {_logo_img}
-      <div class="sb-logo-title">SOVA</div>
-      <div class="sb-logo-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-title">Security Boundary</div>
-      <div class="sb-row"><strong>Kata VM</strong><span>Hardware-isolated kernel</span></div>
-      <div class="sb-row"><strong>OpenShell</strong><span>Egress deny-all</span></div>
-      <div class="sb-row"><strong>RHOAI</strong><span>On-prem model endpoint</span></div>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-title">Network Policy</div>
-      <div class="sb-row"><strong>Model endpoint</strong><span class="sb-allow">✓ allowed</span></div>
-      <div class="sb-row"><strong>semgrep.dev</strong><span class="sb-allow">✓ allowed</span></div>
-      <div class="sb-row"><strong>github.com</strong><span class="sb-allow">✓ allowed</span></div>
-      <div class="sb-row"><strong>Everything else</strong><span class="sb-deny">✗ blocked</span></div>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-title">Scanners</div>
-      <div class="sb-row"><strong>Semgrep</strong><span>694 rules</span></div>
-      <div class="sb-row"><strong>Bandit</strong><span>Python SAST</span></div>
-      <div class="sb-row"><strong>Safety</strong><span>Dep CVE check</span></div>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-title">Example Targets</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    for ex in [
-        "github.com/digininja/DVWA",
-        "github.com/OWASP/WebGoat-Legacy",
-        "github.com/juice-shop/juice-shop",
-    ]:
-        st.code(f"https://{ex}.git", language=None)
-
-    # ── Scan history ──────────────────────────────────────────────────────────
-    if st.session_state.get("scan_history"):
-        st.markdown("""
-        <div class="sb-section" style="margin-top:0.5rem;">
-          <div class="sb-section-title">Recent Scans</div>
-        </div>
-        """, unsafe_allow_html=True)
-        for i, entry in enumerate(st.session_state.scan_history):
-            repo_short = entry["url"].split("/")[-1].replace(".git", "")
-            risk_col = _risk_color(entry["risk"])
-            label = f'`{repo_short}` · risk {entry["risk"]} · {entry["ts"]}'
-            if st.button(label, key=f"hist_{i}", use_container_width=True):
-                st.session_state.current_sarif = entry["sarif"]
-                st.session_state.scan_duration = entry["duration"]
-                st.rerun()
-
-# ── Hero ──────────────────────────────────────────────────────────────────────
-_hero_logo = ""  # logo is in sidebar only
+_logo_img = (
+    f'<img src="data:image/png;base64,{_lb64}" '
+    f'style="width:42px;height:42px;object-fit:contain;">'
+    if _lb64 else "🛡"
+)
 st.markdown(f"""
-<div class="hero-wrap">
-  {_hero_logo}
-  <div class="hero-grid-text">[ KATA VM ] [ OPENSHELL ] [ RHOAI ]<br>EGRESS POLICY: ENFORCE<br>SANDBOX: ACTIVE</div>
-  <div class="hero-eyebrow">Red Hat OpenShift AI · DEMOJam 2027</div>
-  <div class="hero-title">Sovereign Oversight &amp;<br>Vulnerability Agent</div>
-  <div class="hero-sub">
-    AI-powered code security scanning that never leaves your cluster.
-    Every scan runs inside a hardware-isolated Kata VM with enforced network egress control.
+<div class="topbanner">
+  <div class="topbanner-left">
+    {_logo_img}
+    <div class="topbanner-brand">
+      <div class="topbanner-title">SOVA</div>
+      <div class="topbanner-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
+    </div>
   </div>
-  <div class="pill-row">
-    <div class="pill"><span class="dot dot-green"></span>Kata VM Active</div>
-    <div class="pill"><span class="dot dot-cyan"></span>OpenShell Enforced</div>
+  <div class="topbanner-right">
+    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
     <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
-    <div class="pill"><span class="dot dot-cyan"></span>Zero Data Leakage</div>
+    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -620,6 +519,23 @@ if "last_scan_id" not in st.session_state:
     st.session_state.last_scan_id = None
 
 # ── Scan input ────────────────────────────────────────────────────────────────
+# ── Recent scans (compact row) ────────────────────────────────────────────────
+if st.session_state.get("scan_history"):
+    hist_cols = st.columns(len(st.session_state.scan_history[:5]))
+    for i, (col, entry) in enumerate(zip(hist_cols, st.session_state.scan_history[:5])):
+        repo_short = entry["url"].split("/")[-1].replace(".git", "")
+        risk_col = _risk_color(entry["risk"])
+        with col:
+            if st.button(
+                f"{repo_short}  ·  {entry['risk']}",
+                key=f"hist_{i}",
+                use_container_width=True,
+                help=f"Risk {entry['risk']} · {entry['duration']} · {entry['ts']}",
+            ):
+                st.session_state.current_sarif = entry["sarif"]
+                st.session_state.scan_duration = entry["duration"]
+                st.rerun()
+
 st.markdown('<div class="scan-label">Repository URL</div>', unsafe_allow_html=True)
 col_input, col_btn = st.columns([5, 1])
 with col_input:
