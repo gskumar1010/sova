@@ -99,25 +99,37 @@ st.markdown("""
 
 /* ── Top Banner ── */
 .topbanner {
-  display: flex; align-items: center;
+  display: flex; align-items: flex-end;
   justify-content: space-between;
   background: linear-gradient(90deg, rgba(5,8,16,0.99) 0%, rgba(0,25,50,0.96) 100%);
   border-bottom: 1px solid rgba(0,180,255,0.15);
-  padding: 0.65rem 2.5rem;
-  margin-bottom: 1.25rem;
+  padding: 0.5rem 2.5rem 0;
+  margin-bottom: 1.75rem;
   flex-wrap: wrap; gap: 0.5rem;
-  /* Break out of Streamlit container to go truly edge-to-edge */
   width: 100vw;
   position: relative;
   left: 50%;
   transform: translateX(-50%);
   margin-top: -0.25rem;
+  overflow: visible;
 }
-.topbanner-left { display: flex; align-items: center; gap: 0.75rem; }
+.topbanner-logo {
+  /* Drop the owl so its branch sits on the bottom border */
+  position: relative;
+  bottom: -1px;
+  filter: drop-shadow(0 0 8px rgba(0,180,255,0.2));
+}
+.topbanner-left {
+  display: flex; align-items: flex-end; gap: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+.topbanner-right {
+  display: flex; align-items: center; gap: 0.4rem;
+  flex-wrap: wrap; padding-bottom: 0.5rem;
+}
 .topbanner-brand { line-height: 1.2; }
 .topbanner-title { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.3px; }
 .topbanner-sub { font-size: 0.65rem; color: #475569; }
-.topbanner-right { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 
 /* ── Global typography ── */
 html, body, [class*="css"] {
@@ -489,7 +501,7 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
-    f'style="width:42px;height:42px;object-fit:contain;">'
+    f'class="topbanner-logo" style="width:auto;height:90px;">'
     if _lb64 else "🛡"
 )
 st.markdown(f"""
