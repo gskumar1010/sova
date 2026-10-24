@@ -14,7 +14,9 @@ import base64
 from pathlib import Path
 from PIL import Image
 
+import streamlit.components.v1 as components
 from agent_client import run_agent, run_scan_steps, stage_and_run, validate_git_url, parse_sarif, get_trace
+from chat_component import build_chat_html
 
 def _logo_b64() -> str:
     p = Path(__file__).parent / "sova_logo.png"
@@ -550,7 +552,28 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 # ── Top banner ────────────────────────────────────────────────────────────────
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
-_chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
+
+# Handle chat message from component (query param set by JS)
+_incoming_msg = st.query_params.get("sova_chat_msg", "")
+if _incoming_msg:
+    _msg = _incoming_msg
+    st.query_params.clear()
+    st.session_state.chat_history.append(("user", _msg))
+    with st.spinner("Agent running…"):
+        try:
+            _result = run_agent(_msg)
+            st.session_state.chat_history.append(("assistant", _result.text))
+            if _result.sarif_data:
+                st.session_state.current_sarif = _result.sarif_data
+                st.session_state.show_dashboard = True
+        except Exception as e:
+            st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
+
+# Handle drawer toggle from component
+if st.query_params.get("sova_chat_toggle") == "1":
+    st.session_state.chat_open = not st.session_state.chat_open
+    st.query_params.clear()
+    st.rerun()
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
@@ -574,15 +597,14 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-_col_sp, _col_btn = st.columns([5, 1])
-with _col_btn:
-    _btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
-    if st.button(_btn_txt, key="chat_toggle", use_container_width=True):
-        st.session_state.chat_open = not st.session_state.chat_open
-        st.rerun()
+# ── Chat component — FAB button + drawer injected at top level ────────────────
+_chat_html = build_chat_html(
+    chat_history=st.session_state.get("chat_history", []),
+    is_open=st.session_state.chat_open,
+    logo_b64=_lb64,
+)
+components.html(_chat_html, height=0, scrolling=False)
 
-# ── Chat panel placeholder — filled after _chat_panel() is defined below ──────
-_chat_placeholder = st.empty()
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
@@ -1227,11 +1249,6 @@ def _chat_panel():
                 '</div>',
                 unsafe_allow_html=True,
             )
-
-# Fill the placeholder at the top with the chat panel now that it's defined
-if st.session_state.chat_open:
-    with _chat_placeholder:
-        _chat_panel()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
