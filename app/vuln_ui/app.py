@@ -508,6 +508,41 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 }
 [data-testid="stChatInput"] textarea::placeholder { color: #334155 !important; }
 
+/* ── Fixed chat button in banner ── */
+.chat-fab {
+  position: fixed;
+  top: 0.85rem;
+  right: 1.5rem;
+  z-index: 9999;
+  background: linear-gradient(135deg, #0060aa 0%, #0084cc 100%);
+  border: 1px solid rgba(0,180,255,0.35);
+  border-radius: 100px;
+  padding: 0.35rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(0,132,204,0.3);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.chat-fab:hover { background: linear-gradient(135deg, #0084cc 0%, #00a0e8 100%); }
+
+/* ── Right drawer ── */
+.chat-drawer-col [data-testid="stVerticalBlock"] {
+  position: fixed !important;
+  top: 0; right: 0;
+  width: 380px;
+  height: 100vh;
+  background: rgba(5,8,16,0.98);
+  border-left: 1px solid rgba(0,180,255,0.2);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+  overflow-y: auto;
+  z-index: 9000;
+  padding: 1rem;
+  backdrop-filter: blur(20px);
+}
+
 /* ── Chat panel ── */
 .chat-panel-wrap {
   border: 1px solid rgba(0,180,255,0.22);
@@ -567,6 +602,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
+# (session state init happens below — banner toggle button is rendered after state is ready)
 if "history" not in st.session_state:
     st.session_state.history = []
 if "current_sarif" not in st.session_state:
@@ -580,9 +616,42 @@ if "egress_blocked" not in st.session_state:
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
 if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []   # isolated from scan history
+    st.session_state.chat_history = []
 if "last_scan_id" not in st.session_state:
     st.session_state.last_scan_id = None
+
+# ── Fixed chat FAB button (top-right corner) ──────────────────────────────────
+_fab_label = "✕ Chat" if st.session_state.chat_open else "💬 Agent Chat"
+if st.button(_fab_label, key="chat_toggle"):
+    st.session_state.chat_open = not st.session_state.chat_open
+    st.rerun()
+# Style that button as a fixed FAB at top-right
+st.markdown("""
+<style>
+div[data-testid="stButton"]:has(button[data-testid="baseButton-secondary"][kind="secondary"]) {
+  display: none;
+}
+/* Target by key — Streamlit adds aria-label matching the button text */
+div[data-testid="stMainBlockContainer"] > div > div > div[data-testid="stButton"]:nth-child(2) button,
+button[aria-label="💬 Agent Chat"],
+button[aria-label="✕ Chat"] {
+  position: fixed !important;
+  top: 0.7rem !important;
+  right: 1.5rem !important;
+  z-index: 9999 !important;
+  background: linear-gradient(135deg,#0060aa,#0084cc) !important;
+  border: 1px solid rgba(0,180,255,0.35) !important;
+  border-radius: 100px !important;
+  color: #fff !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 0.3rem 1rem !important;
+  min-height: unset !important;
+  height: auto !important;
+  box-shadow: 0 0 16px rgba(0,132,204,0.3) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ── Scan input ────────────────────────────────────────────────────────────────
 # ── Recent scans (compact row) ────────────────────────────────────────────────
@@ -1162,23 +1231,27 @@ if _sarif:
         mime="application/json",
     )
 
-# ── Agent conversation ────────────────────────────────────────────────────────
-# ── Persistent Agent Chat Panel ───────────────────────────────────────────────
-st.markdown("<hr>", unsafe_allow_html=True)
-n_msgs = len([h for h in st.session_state.chat_history if h[0] == "assistant"])
-if st.session_state.chat_open:
-    btn_label = "💬  Close Agent Chat"
-elif n_msgs:
-    plural = "s" if n_msgs != 1 else ""
-    btn_label = f"💬  Open Agent Chat  ·  {n_msgs} message{plural}"
-else:
-    btn_label = "💬  Open Agent Chat"
-if st.button(btn_label, key="chat_toggle"):
-    st.session_state.chat_open = not st.session_state.chat_open
-    st.rerun()
-
 @st.fragment
 def _chat_panel():
+    # CSS to make this fragment's container a fixed right drawer
+    st.markdown("""
+    <style>
+    /* Push main content left when drawer is open */
+    .block-container { padding-right: calc(2rem + 390px) !important; }
+    /* Fix the chat stVerticalBlockBorderWrapper to the right */
+    [data-testid="stVerticalBlockBorderWrapper"]:last-of-type {
+      position: fixed !important; top: 0 !important; right: 0 !important;
+      width: 380px !important; height: 100vh !important;
+      background: rgba(5,8,16,0.98) !important;
+      border-left: 1px solid rgba(0,180,255,0.22) !important;
+      border-right: none !important; border-top: none !important; border-bottom: none !important;
+      border-radius: 0 !important;
+      box-shadow: -8px 0 40px rgba(0,0,0,0.5) !important;
+      overflow-y: auto !important; z-index: 9000 !important;
+      backdrop-filter: blur(20px);
+    }
+    </style>
+    """, unsafe_allow_html=True)
     with st.container(border=True):
         st.markdown(
             '<div class="chat-panel-header"><span>🤖</span> Agent Chat — Kata VM Sandbox</div>',
