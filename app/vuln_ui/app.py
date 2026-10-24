@@ -129,9 +129,20 @@ st.markdown("""
   display: flex; align-items: center; gap: 0.4rem;
   flex-wrap: wrap; padding-bottom: 0.5rem;
 }
-.topbanner-brand { line-height: 1.2; }
-.topbanner-title { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.3px; }
-.topbanner-sub { font-size: 0.65rem; color: #475569; }
+.topbanner-brand { line-height: 1.3; }
+.topbanner-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+}
+.topbanner-title .initial {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
 
 /* ── Global typography ── */
 html, body, [class*="css"] {
@@ -511,8 +522,7 @@ st.markdown(f"""
   <div class="topbanner-left">
     {_logo_img}
     <div class="topbanner-brand">
-      <div class="topbanner-title">SOVA</div>
-      <div class="topbanner-sub">Sovereign Oversight &amp; Vulnerability Agent</div>
+      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
     </div>
   </div>
   <div class="topbanner-right">
