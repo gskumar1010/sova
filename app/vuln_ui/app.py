@@ -1178,49 +1178,46 @@ if st.button(btn_label, key="chat_toggle"):
 
 @st.fragment
 def _chat_panel():
-    st.markdown("""
-    <div class="chat-panel-wrap">
-      <div class="chat-panel">
-        <div class="chat-panel-header"><span>🤖</span> Agent Chat — Kata VM Sandbox</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col_msg, col_send = st.columns([6, 1])
-    with col_msg:
-        user_input = st.text_input(
-            "prompt",
-            placeholder="Ask the security agent anything…",
-            label_visibility="collapsed",
-            key="chat_text_input",
-        )
-    with col_send:
-        send_clicked = st.button("Send", type="primary", use_container_width=True, key="chat_send")
-
-    if send_clicked and user_input:
-        st.session_state.chat_history.append(("user", user_input))
-        with st.spinner("Agent running in Kata VM sandbox…"):
-            try:
-                result = run_agent(user_input)
-                st.session_state.chat_history.append(("assistant", result.text))
-                if result.sarif_data:
-                    st.session_state.current_sarif = result.sarif_data
-                    st.session_state.scan_duration = None
-            except Exception as e:
-                st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
-        st.rerun()
-
-    if st.session_state.chat_history:
-        for role, text in reversed(st.session_state.chat_history):
-            with st.chat_message(role):
-                st.markdown(text)
-    elif not st.session_state.chat_history:
+    with st.container(border=True):
         st.markdown(
-            '<div style="color:#334155;font-size:0.82rem;padding:0.5rem 0 0.25rem;text-align:center;">'
-            'No messages yet — ask the agent anything about the scan results or the codebase.'
-            '</div>',
+            '<div class="chat-panel-header"><span>🤖</span> Agent Chat — Kata VM Sandbox</div>',
             unsafe_allow_html=True,
         )
+        col_msg, col_send = st.columns([6, 1])
+        with col_msg:
+            user_input = st.text_input(
+                "prompt",
+                placeholder="Ask the security agent anything…",
+                label_visibility="collapsed",
+                key="chat_text_input",
+            )
+        with col_send:
+            send_clicked = st.button("Send", type="primary", use_container_width=True, key="chat_send")
+
+        if send_clicked and user_input:
+            st.session_state.chat_history.append(("user", user_input))
+            with st.spinner("Agent running in Kata VM sandbox…"):
+                try:
+                    result = run_agent(user_input)
+                    st.session_state.chat_history.append(("assistant", result.text))
+                    if result.sarif_data:
+                        st.session_state.current_sarif = result.sarif_data
+                        st.session_state.scan_duration = None
+                except Exception as e:
+                    st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
+            st.rerun()
+
+        if st.session_state.chat_history:
+            for role, text in reversed(st.session_state.chat_history):
+                with st.chat_message(role):
+                    st.markdown(text)
+        else:
+            st.markdown(
+                '<div style="color:#334155;font-size:0.82rem;padding:0.5rem 0 0.25rem;text-align:center;">'
+                'No messages yet — ask the agent anything.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
 if st.session_state.chat_open:
     _chat_panel()
