@@ -1159,25 +1159,38 @@ if st.session_state.chat_open:
     </div>
     """, unsafe_allow_html=True)
 
-    # Isolated chat history — never touches scan state
-    for role, text in st.session_state.chat_history:
-        with st.chat_message(role):
-            st.markdown(text)
+    # Input at the top
+    col_msg, col_send = st.columns([6, 1])
+    with col_msg:
+        user_input = st.text_input(
+            "prompt",
+            placeholder="Ask the security agent anything…",
+            label_visibility="collapsed",
+            key="chat_text_input",
+        )
+    with col_send:
+        send_clicked = st.button("Send", type="primary", use_container_width=True, key="chat_send")
 
-    custom_prompt = st.chat_input("Ask the security agent anything…", key="chat_panel_input")
-    if custom_prompt:
-        st.session_state.chat_history.append(("user", custom_prompt))
+    if send_clicked and user_input:
+        st.session_state.chat_history.append(("user", user_input))
         with st.spinner("Agent running in Kata VM sandbox…"):
             try:
-                result = run_agent(custom_prompt)
+                result = run_agent(user_input)
                 st.session_state.chat_history.append(("assistant", result.text))
-                # If the agent produced SARIF (e.g. reachability analysis), surface it in the dashboard
                 if result.sarif_data:
                     st.session_state.current_sarif = result.sarif_data
                     st.session_state.scan_duration = None
             except Exception as e:
                 st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
         st.rerun()
+
+    # Messages — newest first
+    if st.session_state.chat_history:
+        st.markdown("<div style='margin-top:0.75rem;'>", unsafe_allow_html=True)
+        for role, text in reversed(st.session_state.chat_history):
+            with st.chat_message(role):
+                st.markdown(text)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
