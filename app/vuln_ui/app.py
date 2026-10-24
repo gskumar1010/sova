@@ -141,8 +141,9 @@ st.markdown("""
   font-size: 1.55rem;
   font-weight: 800;
   color: #f1f5f9;
-  letter-spacing: -0.5px;
+  letter-spacing: 0.02em;
   line-height: 1;
+  margin-right: 0.03em;
 }
 
 /* ── Global typography ── */
