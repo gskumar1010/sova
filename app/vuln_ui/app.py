@@ -502,7 +502,7 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
-    f'class="topbanner-logo" style="width:auto;height:90px;">'
+    f'class="topbanner-logo" style="width:auto;height:130px;">'
     if _lb64 else "🛡"
 )
 st.markdown(f"""
