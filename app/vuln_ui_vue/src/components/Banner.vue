@@ -62,6 +62,7 @@ defineEmits(['toggle-chat'])
   bottom: -35px;
   flex-shrink: 0;
   filter: drop-shadow(0 0 10px rgba(0,180,255,0.25));
+  z-index: 10;
 }
 
 .brand { padding-bottom: 0.65rem; }
