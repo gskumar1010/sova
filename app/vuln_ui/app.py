@@ -114,10 +114,11 @@ st.markdown("""
   overflow: visible;
 }
 .topbanner-logo {
-  /* Drop the owl so its branch sits on the bottom border */
+  /* Push owl down so the branch crosses over the bottom border */
   position: relative;
-  bottom: -1px;
-  filter: drop-shadow(0 0 8px rgba(0,180,255,0.2));
+  bottom: -28px;
+  z-index: 10;
+  filter: drop-shadow(0 0 10px rgba(0,180,255,0.25));
 }
 .topbanner-left {
   display: flex; align-items: flex-end; gap: 0.75rem;
