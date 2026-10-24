@@ -508,41 +508,6 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 }
 [data-testid="stChatInput"] textarea::placeholder { color: #334155 !important; }
 
-/* ── Fixed chat button in banner ── */
-.chat-fab {
-  position: fixed;
-  top: 0.85rem;
-  right: 1.5rem;
-  z-index: 9999;
-  background: linear-gradient(135deg, #0060aa 0%, #0084cc 100%);
-  border: 1px solid rgba(0,180,255,0.35);
-  border-radius: 100px;
-  padding: 0.35rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 0 16px rgba(0,132,204,0.3);
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-.chat-fab:hover { background: linear-gradient(135deg, #0084cc 0%, #00a0e8 100%); }
-
-/* ── Right drawer ── */
-.chat-drawer-col [data-testid="stVerticalBlock"] {
-  position: fixed !important;
-  top: 0; right: 0;
-  width: 380px;
-  height: 100vh;
-  background: rgba(5,8,16,0.98);
-  border-left: 1px solid rgba(0,180,255,0.2);
-  box-shadow: -8px 0 40px rgba(0,0,0,0.6);
-  overflow-y: auto;
-  z-index: 9000;
-  padding: 1rem;
-  backdrop-filter: blur(20px);
-}
-
 /* ── Chat panel ── */
 .chat-panel-wrap {
   border: 1px solid rgba(0,180,255,0.22);
@@ -1233,25 +1198,6 @@ if _sarif:
 
 @st.fragment
 def _chat_panel():
-    # CSS to make this fragment's container a fixed right drawer
-    st.markdown("""
-    <style>
-    /* Push main content left when drawer is open */
-    .block-container { padding-right: calc(2rem + 390px) !important; }
-    /* Fix the chat stVerticalBlockBorderWrapper to the right */
-    [data-testid="stVerticalBlockBorderWrapper"]:last-of-type {
-      position: fixed !important; top: 0 !important; right: 0 !important;
-      width: 380px !important; height: 100vh !important;
-      background: rgba(5,8,16,0.98) !important;
-      border-left: 1px solid rgba(0,180,255,0.22) !important;
-      border-right: none !important; border-top: none !important; border-bottom: none !important;
-      border-radius: 0 !important;
-      box-shadow: -8px 0 40px rgba(0,0,0,0.5) !important;
-      overflow-y: auto !important; z-index: 9000 !important;
-      backdrop-filter: blur(20px);
-    }
-    </style>
-    """, unsafe_allow_html=True)
     with st.container(border=True):
         st.markdown(
             '<div class="chat-panel-header"><span>🤖</span> Agent Chat — Kata VM Sandbox</div>',
