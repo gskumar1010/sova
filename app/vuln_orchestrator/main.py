@@ -286,9 +286,48 @@ def _run_full_scan(scan_id: str, git_url: str):
         scan_manager.store_sarif(scan_id, sarif_str)
         scan_manager.update_status(scan_id, "completed")
 
+        # ── AI Analysis (direct MaaS call) ────────────────────────────────
+        agent_text = ""
+        maas_url = os.environ.get("OPENAI_BASE_URL", "")
+        maas_key = os.environ.get("OPENAI_API_KEY", "")
+        if maas_url and maas_key and summary.get("total", 0) > 0:
+            _emit(scan_id, "analysis", "started", "Sending findings to nemotron-30b-vulkan…")
+            try:
+                import requests as _req
+                top_rules = ", ".join(
+                    f"{r['ruleId']}({r['count']})" for r in summary.get("top_rules", [])[:5]
+                )
+                ai_prompt = (
+                    f"Security scan of a code repository found {summary['total']} vulnerabilities: "
+                    f"Critical: {summary['critical']}, High: {summary['high']}, "
+                    f"Medium: {summary['medium']}, Low: {summary['low']}. "
+                    f"Top rules triggered: {top_rules}. "
+                    f"Provide a 3-sentence executive summary of the security posture and top remediation priorities."
+                )
+                resp = _req.post(
+                    f"{maas_url.rstrip('/')}/chat/completions",
+                    json={"model": os.environ.get("MODEL_NAME", "nemotron-30b-vulkan"),
+                          "messages": [{"role": "user", "content": ai_prompt}],
+                          "max_tokens": 256},
+                    headers={"Authorization": f"Bearer {maas_key}",
+                             "Content-Type": "application/json"},
+                    timeout=120,
+                )
+                if resp.status_code == 200:
+                    agent_text = resp.json()["choices"][0]["message"]["content"]
+                    _emit(scan_id, "analysis", "completed", "AI summary generated")
+                else:
+                    _emit(scan_id, "analysis", "completed", f"AI unavailable ({resp.status_code})")
+            except Exception as ai_err:
+                _emit(scan_id, "analysis", "completed", f"AI skipped: {ai_err}")
+        else:
+            _emit(scan_id, "analysis", "completed", f"{summary['total']} total findings")
+
         summary = _summarise_sarif(merged)
-        _scan_state[scan_id] = {"status": "completed", "sarif": merged, "summary": summary}
-        _emit(scan_id, "analysis", "completed", f"{summary['total']} total findings")
+        _scan_state[scan_id] = {
+            "status": "completed", "sarif": merged, "summary": summary,
+            "agent_text": agent_text,
+        }
 
     except Exception as exc:
         _emit(scan_id, "clone", "failed", str(exc)[:200])
@@ -343,6 +382,7 @@ def api_full_result(scan_id: str):
         "status": state["status"],
         "sarif": state["sarif"],
         "summary": state["summary"],
+        "agent_text": state.get("agent_text", ""),
     }
 
 
