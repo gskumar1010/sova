@@ -594,16 +594,35 @@ if st.session_state.get("scan_history"):
                 st.session_state.scan_duration = entry["duration"]
                 st.rerun()
 
-st.markdown('<div class="scan-label">Repository URL</div>', unsafe_allow_html=True)
+DEMO_REPOS = {
+    "— Select a demo repository —": "",
+    "🐍 PyGoat — Vulnerable Django app": "https://github.com/adeyosemanputra/pygoat.git",
+    "🌍 DVWA — Damn Vulnerable Web App": "https://github.com/digininja/DVWA.git",
+    "☁️ TerraGoat — Terraform misconfigs": "https://github.com/bridgecrewio/terragoat.git",
+    "🍶 Flask — Python web framework": "https://github.com/pallets/flask.git",
+    "🧃 Juice Shop — OWASP Node.js app": "https://github.com/juice-shop/juice-shop.git",
+    "🔑 WebGoat Legacy — Java vulns": "https://github.com/WebGoat/WebGoat-Legacy.git",
+}
+
+st.markdown('<div class="scan-label">Select a demo repo or paste your own URL</div>', unsafe_allow_html=True)
+
+selected_demo = st.selectbox(
+    "demo",
+    options=list(DEMO_REPOS.keys()),
+    label_visibility="collapsed",
+)
+
 col_input, col_btn = st.columns([5, 1])
 with col_input:
-    git_url = st.text_input(
+    custom_url = st.text_input(
         "repo",
-        placeholder="https://github.com/org/repo.git",
+        placeholder="https://github.com/org/repo.git  (or select a demo above)",
         label_visibility="collapsed",
     )
 with col_btn:
     scan_clicked = st.button("Scan →", type="primary", use_container_width=True)
+
+git_url = DEMO_REPOS.get(selected_demo, "") or custom_url
 
 if scan_clicked and git_url:
     is_valid, error_msg = validate_git_url(git_url)
