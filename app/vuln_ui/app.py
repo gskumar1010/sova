@@ -99,11 +99,11 @@ st.markdown("""
 
 /* ── Top Banner ── */
 .topbanner {
-  display: flex; align-items: flex-end;
+  display: flex; align-items: center;
   justify-content: space-between;
   background: linear-gradient(90deg, rgba(5,8,16,0.99) 0%, rgba(0,25,50,0.96) 100%);
   border-bottom: 1px solid rgba(0,180,255,0.15);
-  padding: 0.5rem 2.5rem 0;
+  padding: 0.65rem 2.5rem;
   margin-bottom: 1.75rem;
   flex-wrap: wrap; gap: 0.5rem;
   width: 100vw;
@@ -114,15 +114,16 @@ st.markdown("""
   overflow: visible;
 }
 .topbanner-logo {
-  /* Push owl down so the branch crosses over the bottom border */
-  position: relative;
+  /* Absolute so it doesn't affect banner height — overlaps top and bottom freely */
+  position: absolute;
+  left: 2rem;
   bottom: -28px;
   z-index: 10;
   filter: drop-shadow(0 0 10px rgba(0,180,255,0.25));
 }
 .topbanner-left {
-  display: flex; align-items: flex-end; gap: 0.75rem;
-  padding-bottom: 0.5rem;
+  display: flex; align-items: center; gap: 0.75rem;
+  padding-left: 9rem; /* leave room for the absolutely-positioned owl */
 }
 .topbanner-right {
   display: flex; align-items: center; gap: 0.4rem;
