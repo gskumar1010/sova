@@ -588,6 +588,8 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "current_sarif" not in st.session_state:
     st.session_state.current_sarif = None
+if "show_dashboard" not in st.session_state:
+    st.session_state.show_dashboard = False
 if "scan_duration" not in st.session_state:
     st.session_state.scan_duration = None
 if "scan_history" not in st.session_state:
@@ -616,6 +618,7 @@ if st.session_state.get("scan_history"):
                 help=f"Risk {entry['risk']} · {entry['duration']} · {entry['ts']}",
             ):
                 st.session_state.current_sarif = entry["sarif"]
+                st.session_state.show_dashboard = True
                 st.session_state.scan_duration = entry["duration"]
                 st.rerun()
 
@@ -913,6 +916,7 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                 st.session_state.egress_blocked = result.egress_blocked
                 if result.sarif_data:
                     st.session_state.current_sarif = result.sarif_data
+                    st.session_state.show_dashboard = True
                     sc_tmp = parse_sarif(result.sarif_data)["severity_counts"]
                     entry = {
                         "url": git_url,
@@ -925,9 +929,8 @@ Report ONLY: total count, severity breakdown, and top 5 rule IDs (no details, no
                         [entry] + st.session_state.scan_history
                     )[:5]
 
-# ── SARIF Dashboard ───────────────────────────────────────────────────────────
-# Snapshot SARIF at render time so download button re-run can't clear it
-_sarif = st.session_state.current_sarif
+# ── SARIF Dashboard — only renders when a scan was intentionally run ──────────
+_sarif = st.session_state.current_sarif if st.session_state.get("show_dashboard") else None
 if _sarif:
     sarif_metrics = parse_sarif(_sarif)
     total = sarif_metrics["total"]
@@ -1205,6 +1208,7 @@ def _chat_panel():
                     st.session_state.chat_history.append(("assistant", result.text))
                     if result.sarif_data:
                         st.session_state.current_sarif = result.sarif_data
+                        st.session_state.show_dashboard = True
                         st.session_state.scan_duration = None
                 except Exception as e:
                     st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
