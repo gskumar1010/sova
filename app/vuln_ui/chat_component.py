@@ -237,13 +237,34 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "",
 
 <script>
   var isOpen = {'true' if is_open else 'false'};
+  var DRAWER_W = 400;
+
+  function positionDrawer() {{
+    try {{
+      // Calculate how far the iframe's right edge is from the window's right edge
+      var parentW = window.parent.innerWidth;
+      var iframeRect = window.frameElement.getBoundingClientRect();
+      var gap = parentW - iframeRect.right;  // pixels missing on the right
+      var drawer = document.getElementById('chat-drawer');
+      drawer.style.right = (-gap) + 'px';   // extend drawer beyond iframe edge
+      drawer.style.width = DRAWER_W + 'px';
+
+      // Also position the FAB at the true far right inside the banner
+      var fab = document.getElementById('chat-fab');
+      fab.style.position = 'absolute';
+      fab.style.right = (-gap + 12) + 'px';
+    }} catch(e) {{}}
+  }}
 
   function toggleDrawer() {{
     isOpen = !isOpen;
-    document.getElementById('chat-drawer').style.transform =
-      isOpen ? 'translateX(0)' : 'translateX(100%)';
+    var drawer = document.getElementById('chat-drawer');
+    drawer.style.transform = isOpen ? 'translateX(0)' : 'translateX(100%)';
     document.getElementById('chat-fab').textContent = isOpen ? '✕ Close' : '💬 Chat';
-    window.parent.postMessage({{type:'sova_chat_toggle', open: isOpen}}, '*');
+    // Tell Streamlit to set z-index and expand height via query param
+    var url = new URL(window.parent.location.href);
+    url.searchParams.set('sova_chat_toggle', '1');
+    window.parent.location.href = url.toString();
   }}
 
   function sendMsg() {{
@@ -265,8 +286,11 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "",
     window.parent.location.href = url.toString();
   }}
 
-  // Keep input focus on load
-  document.getElementById('chat-input').focus();
+  // Position elements relative to parent window right edge
+  positionDrawer();
+  window.addEventListener('resize', positionDrawer);
+
+  if (isOpen) document.getElementById('chat-input').focus();
 </script>
 </body>
 </html>

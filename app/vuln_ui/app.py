@@ -593,9 +593,12 @@ _component_height = 900 if st.session_state.chat_open else 145
 components.html(_chat_html, height=_component_height, scrolling=False)
 # Lift the component iframe above all Streamlit content so the drawer overlays correctly
 st.markdown(f"""<style>
-iframe {{
-  z-index: {"9999" if st.session_state.chat_open else "10"} !important;
+/* Lift the component iframe above all Streamlit content when drawer is open */
+[data-testid="stCustomComponentV1"],
+[data-testid="stCustomComponentV1"] iframe {{
+  z-index: {"9999" if st.session_state.chat_open else "1"} !important;
   position: relative !important;
+  overflow: visible !important;
 }}
 </style>""", unsafe_allow_html=True)
 
