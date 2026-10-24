@@ -12,19 +12,12 @@ import requests as _requests
 
 import base64
 from pathlib import Path
-from PIL import Image
 
-import streamlit.components.v1 as components
 from agent_client import run_agent, run_scan_steps, stage_and_run, validate_git_url, parse_sarif, get_trace
-from chat_component import build_chat_html
 
 def _logo_b64() -> str:
     p = Path(__file__).parent / "sova_logo.png"
     return base64.b64encode(p.read_bytes()).decode() if p.exists() else ""
-
-def _logo_image():
-    p = Path(__file__).parent / "sova_logo.png"
-    return Image.open(p) if p.exists() else "🛡"
 
 ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
 
@@ -75,7 +68,7 @@ def _poll_progress(scan_id: str) -> list:
 
 st.set_page_config(
     page_title="SOVA — Sovereign Vulnerability Analysis",
-    page_icon=_logo_image(),
+    page_icon="🛡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -552,59 +545,43 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 # ── Top banner ────────────────────────────────────────────────────────────────
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
-
-# Handle chat message from component (query param set by JS)
-_incoming_msg = st.query_params.get("sova_chat_msg", "")
-if _incoming_msg:
-    _msg = _incoming_msg
-    st.query_params.clear()
-    st.session_state.chat_history.append(("user", _msg))
-    with st.spinner("Agent running…"):
-        try:
-            _result = run_agent(_msg)
-            st.session_state.chat_history.append(("assistant", _result.text))
-            if _result.sarif_data:
-                st.session_state.current_sarif = _result.sarif_data
-                st.session_state.show_dashboard = True
-        except Exception as e:
-            st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
-
-# Handle drawer toggle from component
-if st.query_params.get("sova_chat_toggle") == "1":
-    st.session_state.chat_open = not st.session_state.chat_open
-    st.query_params.clear()
-    st.rerun()
+_chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
     f'class="topbanner-logo" style="width:auto;height:155px;">'
     if _lb64 else "🛡"
 )
-# Banner is now rendered inside the chat component above
+st.markdown(f"""
+<div class="topbanner">
+  <div class="topbanner-left">
+    {_logo_img}
+    <div class="topbanner-brand">
+      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
+    </div>
+  </div>
+  <div class="topbanner-right">
+    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
+    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
+    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-# ── Chat component — FAB button + drawer injected at top level ────────────────
-_chat_html = build_chat_html(
-    chat_history=st.session_state.get("chat_history", []),
-    is_open=st.session_state.chat_open,
-    logo_b64=_lb64,
-)
-# Height: banner always visible, drawer visible when open (fixed in iframe viewport)
-_component_height = 900 if st.session_state.chat_open else 185
-components.html(_chat_html, height=_component_height, scrolling=False)
-# Lift the component iframe above all Streamlit content so the drawer overlays correctly
-if st.session_state.chat_open:
-    st.markdown("""<style>
-    /* When drawer open: fix iframe to right side, full height, on top of everything */
-    [data-testid="stCustomComponentV1"] iframe {
-      position: fixed !important;
-      top: 0 !important; right: 0 !important;
-      width: 100vw !important; height: 100vh !important;
-      z-index: 9999 !important;
-      background: transparent !important;
-      pointer-events: none;
-    }
-    </style>""", unsafe_allow_html=True)
-
+# ── Chat toggle — right-aligned, appears at top-right via negative margin ─────
+_col_space, _col_chat_btn = st.columns([6, 1])
+with _col_chat_btn:
+    _btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
+    if st.button(_btn_txt, key="chat_toggle", type="primary", use_container_width=True):
+        st.session_state.chat_open = not st.session_state.chat_open
+        st.rerun()
+# Pull the button up into the banner visually
+st.markdown("""<style>
+div[data-testid="stHorizontalBlock"]:has(button[data-testid="baseButton-primary"]) {
+  margin-top: -3.8rem !important; position: relative; z-index: 9999;
+}
+</style>""", unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
@@ -1249,6 +1226,9 @@ def _chat_panel():
                 '</div>',
                 unsafe_allow_html=True,
             )
+
+if st.session_state.chat_open:
+    _chat_panel()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
