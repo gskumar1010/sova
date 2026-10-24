@@ -580,22 +580,7 @@ _logo_img = (
     f'class="topbanner-logo" style="width:auto;height:155px;">'
     if _lb64 else "🛡"
 )
-st.markdown(f"""
-<div class="topbanner">
-  <div class="topbanner-left">
-    {_logo_img}
-    <div class="topbanner-brand">
-      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
-    </div>
-  </div>
-  <div class="topbanner-right">
-    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
-    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
-    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
-    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+# Banner is now rendered inside the chat component above
 
 # ── Chat component — FAB button + drawer injected at top level ────────────────
 _chat_html = build_chat_html(
@@ -603,14 +588,9 @@ _chat_html = build_chat_html(
     is_open=st.session_state.chat_open,
     logo_b64=_lb64,
 )
-components.html(_chat_html, height=900, scrolling=False)
-# Collapse the space the iframe takes up — pointer-events:none lets clicks through
-st.markdown("""<style>
-iframe[title="components.v1.html"] {
-  margin-bottom: -900px !important;
-  pointer-events: none;
-}
-</style>""", unsafe_allow_html=True)
+# Height: banner always visible, drawer visible when open (fixed in iframe viewport)
+_component_height = 900 if st.session_state.chat_open else 145
+components.html(_chat_html, height=_component_height, scrolling=False)
 
 
 # ── Session state ─────────────────────────────────────────────────────────────

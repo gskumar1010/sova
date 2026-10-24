@@ -9,8 +9,9 @@ hidden/transparent overlay div, passing events back via postMessage.
 import json
 
 
-def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "") -> str:
-    """Build the full chat drawer HTML component."""
+def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "",
+                    banner_height: int = 110) -> str:
+    """Build the full chat drawer HTML component including the banner."""
 
     messages_html = ""
     for role, text in reversed(chat_history):
@@ -42,15 +43,31 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "") -> st
 <meta charset="utf-8">
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ background: transparent; font-family: Inter, -apple-system, sans-serif; overflow: hidden; pointer-events: none; }}
-  #chat-fab, #chat-drawer {{ pointer-events: auto; }}
+  body {{ background: transparent; font-family: Inter, -apple-system, sans-serif; overflow: hidden; pointer-events: none; margin: 0; }}
+  #chat-fab, #chat-drawer, .topbanner {{ pointer-events: auto; }}
 
-  /* ── Trigger button that lives in the banner area ── */
+  /* ── Banner ── */
+  .topbanner {{
+    display: flex; align-items: flex-end;
+    justify-content: space-between;
+    background: linear-gradient(90deg,rgba(5,8,16,0.99) 0%,rgba(0,25,50,0.96) 100%);
+    border-bottom: 1px solid rgba(0,180,255,0.15);
+    padding: 2rem 2rem 0;
+    width: 100%; overflow: visible;
+  }}
+  .topbanner-left {{ display:flex; align-items:flex-end; gap:0.75rem; }}
+  .topbanner-logo {{ height:110px; width:auto; position:relative; bottom:-28px; filter:drop-shadow(0 0 10px rgba(0,180,255,0.25)); }}
+  .topbanner-title {{ font-size:1.3rem; font-weight:500; color:#94a3b8; letter-spacing:0.01em; word-spacing:0.35em; padding-bottom:0.65rem; }}
+  .topbanner-title .i {{ font-size:2rem; font-weight:800; color:#f1f5f9; letter-spacing:0.02em; line-height:1; margin-right:0.03em; }}
+  .topbanner-right {{ display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; padding-bottom:0.65rem; }}
+  .pill {{ display:inline-flex; align-items:center; gap:0.35rem; background:rgba(0,180,255,0.06); border:1px solid rgba(0,180,255,0.18); border-radius:100px; padding:0.28rem 0.85rem; font-size:0.72rem; font-weight:500; color:#94a3b8; }}
+  .dot {{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }}
+  .dot-green {{ background:#22c55e; box-shadow:0 0 6px #22c55e; }}
+  .dot-cyan {{ background:#00b4ff; box-shadow:0 0 6px #00b4ff; }}
+  .dot-red {{ background:#ef4444; box-shadow:0 0 6px #ef4444; }}
+
+  /* ── Chat FAB inside the banner ── */
   #chat-fab {{
-    position: fixed;
-    top: 0.6rem;
-    right: 1.5rem;
-    z-index: 99999;
     background: linear-gradient(135deg, #0060aa, #0084cc);
     border: 1px solid rgba(0,180,255,0.4);
     border-radius: 100px;
@@ -62,6 +79,7 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "") -> st
     box-shadow: 0 0 16px rgba(0,132,204,0.35);
     letter-spacing: 0.02em;
     transition: background 0.2s;
+    white-space: nowrap;
   }}
   #chat-fab:hover {{ background: linear-gradient(135deg,#0084cc,#00a0e8); }}
 
@@ -184,8 +202,22 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "") -> st
 </head>
 <body>
 
-<!-- FAB button — always visible in top-right corner -->
-<button id="chat-fab" onclick="toggleDrawer()">{btn_label}</button>
+<!-- Banner with FAB embedded -->
+<div class="topbanner">
+  <div class="topbanner-left">
+    {logo_html}
+    <div class="topbanner-title">
+      <span class="i">S</span>overeign <span class="i">O</span>versight &amp; <span class="i">V</span>ulnerability <span class="i">A</span>gent
+    </div>
+  </div>
+  <div class="topbanner-right">
+    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
+    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
+    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+    <button id="chat-fab" onclick="toggleDrawer()">{btn_label}</button>
+  </div>
+</div>
 
 <!-- Slide-out drawer -->
 <div id="chat-drawer">
