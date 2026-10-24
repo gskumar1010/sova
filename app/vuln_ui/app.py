@@ -523,13 +523,14 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 .chat-panel-header {
   background: linear-gradient(90deg, rgba(0,180,255,0.09) 0%, rgba(0,180,255,0.03) 100%);
   border-bottom: 1px solid rgba(0,180,255,0.15);
-  padding: 0.55rem 1rem;
+  padding: 0.85rem 1.25rem;
   font-size: 0.73rem;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: #475569;
   display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 .chat-panel-input-row {
   padding: 0.75rem 1rem 0;
