@@ -1171,7 +1171,10 @@ if st.session_state.chat_open:
             try:
                 result = run_agent(custom_prompt)
                 st.session_state.chat_history.append(("assistant", result.text))
-                # Chat never overwrites scan SARIF or scan history
+                # If the agent produced SARIF (e.g. reachability analysis), surface it in the dashboard
+                if result.sarif_data:
+                    st.session_state.current_sarif = result.sarif_data
+                    st.session_state.scan_duration = None
             except Exception as e:
                 st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
         st.rerun()
