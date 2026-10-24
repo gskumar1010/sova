@@ -70,7 +70,7 @@ st.set_page_config(
     page_title="SOVA — Sovereign Vulnerability Analysis",
     page_icon="🛡",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="collapsed",  # controlled by chat_open via st.sidebar
 )
 
 st.markdown("""
@@ -89,8 +89,14 @@ st.markdown("""
   background-size: 100% 100%, 40px 40px, 40px 40px;
 }
 
-/* ── Hide sidebar entirely ── */
-[data-testid="stSidebar"],
+/* ── Sidebar flipped to right side ── */
+[data-testid="stSidebar"] {
+  left: auto !important; right: 0 !important;
+  background: rgba(5,8,16,0.98) !important;
+  border-left: 1px solid rgba(0,180,255,0.2) !important;
+  border-right: none !important;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5) !important;
+}
 [data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"] { display: none !important; }
 
@@ -543,13 +549,8 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 """, unsafe_allow_html=True)
 
 # ── Top banner ────────────────────────────────────────────────────────────────
-# Toggle chat state from query param (set by the HTML button in the banner)
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
-if st.query_params.get("chat_toggle") == "1":
-    st.session_state.chat_open = not st.session_state.chat_open
-    st.query_params.clear()
-    st.rerun()
 _chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
 _lb64 = _logo_b64()
 _logo_img = (
@@ -570,14 +571,13 @@ st.markdown(f"""
     <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
     <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
     <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-    <a href="?chat_toggle=1" style="text-decoration:none;">
-      <button style="background:linear-gradient(135deg,#0060aa,#0084cc);
+    <button onclick="window.parent.document.querySelector('[data-testid=stSidebarNav]')?.click(); var btns=window.parent.document.querySelectorAll('[data-testid=stButton] button'); btns[btns.length-1]?.click();"
+      style="background:linear-gradient(135deg,#0060aa,#0084cc);
              border:1px solid rgba(0,180,255,0.35);border-radius:100px;
              padding:0.35rem 1.1rem;font-size:0.75rem;font-weight:600;color:#fff;
              cursor:pointer;box-shadow:0 0 16px rgba(0,132,204,0.3);white-space:nowrap;">
-        {_chat_btn_icon} Agent Chat
-      </button>
-    </a>
+      {_chat_btn_icon} Agent Chat
+    </button>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1222,26 +1222,14 @@ def _chat_panel():
                 unsafe_allow_html=True,
             )
 
-if st.session_state.chat_open:
-    # Shrink main content and render chat in a right column
-    st.markdown("""
-    <style>
-    .block-container { max-width: calc(100% - 420px) !important; }
-    </style>
-    """, unsafe_allow_html=True)
-    with st.container():
-        st.markdown("""
-        <style>
-        /* Last stVerticalBlock inside stMain becomes the right panel */
-        [data-testid="stMain"] > div > div > div[data-testid="stVerticalBlock"] > div:last-child {
-          position: fixed; top: 0; right: 0; width: 400px; height: 100vh;
-          background: rgba(5,8,16,0.98); border-left: 1px solid rgba(0,180,255,0.2);
-          box-shadow: -8px 0 32px rgba(0,0,0,0.5); overflow-y: auto;
-          z-index: 8000; padding: 0; backdrop-filter: blur(20px);
-        }
-        </style>
-        """, unsafe_allow_html=True)
+with st.sidebar:
+    if st.session_state.chat_open:
         _chat_panel()
+
+# Hidden toggle button — clicked by JS in banner button
+if st.button("_chat_toggle_hidden", key="chat_toggle", label_visibility="hidden"):
+    st.session_state.chat_open = not st.session_state.chat_open
+    st.rerun()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
