@@ -106,10 +106,9 @@ st.markdown("""
   padding: 4rem 2.5rem 0.65rem;
   margin-bottom: 1.75rem;
   flex-wrap: wrap; gap: 0.5rem;
-  width: 100vw;
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
+  width: calc(100% + 4rem);
+  margin-left: -2rem;
+  margin-right: -2rem;
   margin-top: -0.25rem;
   overflow: visible;
 }
@@ -552,46 +551,38 @@ _logo_img = (
     f'class="topbanner-logo" style="width:auto;height:155px;">'
     if _lb64 else "🛡"
 )
-st.markdown(f"""
-<div class="topbanner">
-  <div class="topbanner-left">
-    {_logo_img}
-    <div class="topbanner-brand">
-      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
+_btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
+_col_banner, _col_btn = st.columns([10, 1])
+with _col_banner:
+    st.markdown(f"""
+    <div class="topbanner">
+      <div class="topbanner-left">
+        {_logo_img}
+        <div class="topbanner-brand">
+          <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
+        </div>
+      </div>
+      <div class="topbanner-right">
+        <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+        <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
+        <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
+        <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+      </div>
     </div>
-  </div>
-  <div class="topbanner-right">
-    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
-    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
-    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
-    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Chat toggle — right-aligned, appears at top-right via negative margin ─────
-_col_space, _col_chat_btn = st.columns([6, 1])
-with _col_chat_btn:
-    _btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
-    if st.button(_btn_txt, key="chat_toggle", type="primary", use_container_width=True):
+    """, unsafe_allow_html=True)
+with _col_btn:
+    st.markdown('<div style="height:1.2rem;"></div>', unsafe_allow_html=True)
+    if st.button(_btn_txt, key="chat_toggle", use_container_width=True):
         st.session_state.chat_open = not st.session_state.chat_open
         st.rerun()
-# Fix the primary button to top-right of page (it's the only primary button)
+# Match button column background to banner
 st.markdown("""<style>
-button[data-testid="baseButton-primary"] {
-  position: fixed !important;
-  top: 0.65rem !important;
-  right: 1.5rem !important;
-  z-index: 9999 !important;
-  border-radius: 100px !important;
-  padding: 0.3rem 1rem !important;
-  min-height: unset !important;
-  height: auto !important;
-  font-size: 0.78rem !important;
-}
-/* Hide the column wrapper from taking up space */
-div[data-testid="stHorizontalBlock"]:has(button[data-testid="baseButton-primary"]) {
-  height: 0 !important; overflow: visible !important; margin: 0 !important;
+div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
+div[data-testid="stHorizontalBlock"] > div:last-child {
+  background: linear-gradient(90deg, rgba(0,25,50,0.96), rgba(5,8,16,0.99));
+  border-bottom: 1px solid rgba(0,180,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 0.5rem;
 }
 </style>""", unsafe_allow_html=True)
 
