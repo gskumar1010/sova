@@ -52,11 +52,11 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "",
     justify-content: space-between;
     background: linear-gradient(90deg,rgba(5,8,16,0.99) 0%,rgba(0,25,50,0.96) 100%);
     border-bottom: 1px solid rgba(0,180,255,0.15);
-    padding: 2rem 2rem 0;
+    padding: 4rem 2rem 0.65rem;
     width: 100%; overflow: visible;
   }}
   .topbanner-left {{ display:flex; align-items:flex-end; gap:0.75rem; }}
-  .topbanner-logo {{ height:110px; width:auto; position:relative; bottom:-28px; filter:drop-shadow(0 0 10px rgba(0,180,255,0.25)); }}
+  .topbanner-logo {{ height:155px; width:auto; position:relative; bottom:-35px; filter:drop-shadow(0 0 10px rgba(0,180,255,0.25)); }}
   .topbanner-title {{ font-size:1.3rem; font-weight:500; color:#94a3b8; letter-spacing:0.01em; word-spacing:0.35em; padding-bottom:0.65rem; }}
   .topbanner-title .i {{ font-size:2rem; font-weight:800; color:#f1f5f9; letter-spacing:0.02em; line-height:1; margin-right:0.03em; }}
   .topbanner-right {{ display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; padding-bottom:0.65rem; }}

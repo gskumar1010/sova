@@ -589,18 +589,21 @@ _chat_html = build_chat_html(
     logo_b64=_lb64,
 )
 # Height: banner always visible, drawer visible when open (fixed in iframe viewport)
-_component_height = 900 if st.session_state.chat_open else 145
+_component_height = 900 if st.session_state.chat_open else 185
 components.html(_chat_html, height=_component_height, scrolling=False)
 # Lift the component iframe above all Streamlit content so the drawer overlays correctly
-st.markdown(f"""<style>
-/* Lift the component iframe above all Streamlit content when drawer is open */
-[data-testid="stCustomComponentV1"],
-[data-testid="stCustomComponentV1"] iframe {{
-  z-index: {"9999" if st.session_state.chat_open else "1"} !important;
-  position: relative !important;
-  overflow: visible !important;
-}}
-</style>""", unsafe_allow_html=True)
+if st.session_state.chat_open:
+    st.markdown("""<style>
+    /* When drawer open: fix iframe to right side, full height, on top of everything */
+    [data-testid="stCustomComponentV1"] iframe {
+      position: fixed !important;
+      top: 0 !important; right: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      z-index: 9999 !important;
+      background: transparent !important;
+      pointer-events: none;
+    }
+    </style>""", unsafe_allow_html=True)
 
 
 # ── Session state ─────────────────────────────────────────────────────────────
