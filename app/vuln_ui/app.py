@@ -576,10 +576,22 @@ with _col_chat_btn:
     if st.button(_btn_txt, key="chat_toggle", type="primary", use_container_width=True):
         st.session_state.chat_open = not st.session_state.chat_open
         st.rerun()
-# Pull the button up into the banner visually
+# Fix the primary button to top-right of page (it's the only primary button)
 st.markdown("""<style>
+button[data-testid="baseButton-primary"] {
+  position: fixed !important;
+  top: 0.65rem !important;
+  right: 1.5rem !important;
+  z-index: 9999 !important;
+  border-radius: 100px !important;
+  padding: 0.3rem 1rem !important;
+  min-height: unset !important;
+  height: auto !important;
+  font-size: 0.78rem !important;
+}
+/* Hide the column wrapper from taking up space */
 div[data-testid="stHorizontalBlock"]:has(button[data-testid="baseButton-primary"]) {
-  margin-top: -3.8rem !important; position: relative; z-index: 9999;
+  height: 0 !important; overflow: visible !important; margin: 0 !important;
 }
 </style>""", unsafe_allow_html=True)
 
