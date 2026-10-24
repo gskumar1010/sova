@@ -1110,27 +1110,46 @@ if _sarif:
     )
 
 # ── Agent conversation ────────────────────────────────────────────────────────
+# ── Agent output accordion ────────────────────────────────────────────────────
 if st.session_state.history:
-    st.markdown("""<div class="section-header" style="margin-top:1.5rem">Agent Output</div>""", unsafe_allow_html=True)
-    for role, item in st.session_state.history:
-        if role == "user":
-            with st.chat_message("user"):
-                st.markdown(f"`{item}`")
-        else:
-            with st.chat_message("assistant"):
-                if item.egress_blocked:
-                    st.markdown("""
-                    <div class="egress-block">
-                      🚫 <strong>Egress blocked by OpenShell</strong> — agent attempted to reach a non-allowlisted host. Connection denied by policy.
-                    </div>
-                    """, unsafe_allow_html=True)
-                st.markdown(item.text)
+    label = f"🤖 Agent Output  ({len([h for h in st.session_state.history if h[0]=='assistant'])} response{'s' if len([h for h in st.session_state.history if h[0]=='assistant'])!=1 else ''})"
+    with st.expander(label, expanded=False):
+        for role, item in st.session_state.history:
+            if role == "user":
+                with st.chat_message("user"):
+                    st.markdown(f"`{item}`")
+            else:
+                with st.chat_message("assistant"):
+                    if item.egress_blocked:
+                        st.markdown("""
+                        <div class="egress-block">
+                          🚫 <strong>Egress blocked by OpenShell</strong> — agent attempted to reach a non-allowlisted host. Connection denied by policy.
+                        </div>
+                        """, unsafe_allow_html=True)
+                    st.markdown(item.text)
+        st.divider()
+        # Custom prompt inside the accordion
+        custom_prompt = st.chat_input("Send a custom prompt to the agent…", key="accordion_prompt")
+        if custom_prompt:
+            st.session_state.history.append(("user", custom_prompt))
+            with st.spinner("🤖 Agent running…"):
+                try:
+                    scan_id = str(uuid.uuid4())
+                    st.session_state.last_scan_id = scan_id
+                    result = run_agent(custom_prompt, scan_id=scan_id, _sid=scan_id)
+                    st.session_state.history.append(("assistant", result))
+                    if result.sarif_data:
+                        st.session_state.current_sarif = result.sarif_data
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Agent error: {str(e)}")
 
-# ── Custom prompt ─────────────────────────────────────────────────────────────
-custom_prompt = st.chat_input("Send a custom prompt to the security agent...")
+# ── Custom prompt (top-level fallback when no history yet) ────────────────────
+else:
+    custom_prompt = st.chat_input("Send a custom prompt to the security agent...")
 if custom_prompt:
     st.session_state.history.append(("user", custom_prompt))
-    with st.spinner("🤖 Agent running in Kata VM sandbox..."):
+    with st.spinner("🤖 Agent running…"):
         try:
             scan_id = str(uuid.uuid4())
             st.session_state.last_scan_id = scan_id
@@ -1138,15 +1157,9 @@ if custom_prompt:
             st.session_state.history.append(("assistant", result))
             if result.sarif_data:
                 st.session_state.current_sarif = result.sarif_data
-                st.session_state.scan_duration = None
             st.rerun()
         except Exception as e:
-            st.error(f"❌ Agent error: {str(e)}")
-            st.session_state.history.append(("assistant", AgentResult(
-                text=f"Error: {str(e)}",
-                egress_blocked=False,
-                raw=str(e)
-            )))
+            st.error(f"Agent error: {str(e)}")
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
