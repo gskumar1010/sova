@@ -659,6 +659,7 @@ if scan_clicked and git_url:
     else:
         scan_id = str(uuid.uuid4())
         st.session_state.last_scan_id = scan_id
+        st.session_state.show_dashboard = False  # hide old results while new scan runs
         prompt = f"""@security-analyst Scan this repository: {git_url}
 
 FIRST: run this command before anything else:
