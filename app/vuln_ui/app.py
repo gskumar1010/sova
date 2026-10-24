@@ -1213,7 +1213,7 @@ def _chat_panel():
                         st.session_state.scan_duration = None
                 except Exception as e:
                     st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
-            st.rerun()
+            st.rerun(scope="fragment")  # only rerenders the chat section, not the full page
 
         if st.session_state.chat_history:
             for role, text in reversed(st.session_state.chat_history):
