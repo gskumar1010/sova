@@ -543,6 +543,8 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 """, unsafe_allow_html=True)
 
 # ── Top banner ────────────────────────────────────────────────────────────────
+if "chat_open" not in st.session_state:
+    st.session_state.chat_open = False
 _chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
 _lb64 = _logo_b64()
 _logo_img = (
