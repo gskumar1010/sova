@@ -397,7 +397,7 @@ def api_chat(request: ChatRequest):
 
 # ── Static files for Vue frontend ────────────────────────────────────────────
 
-_DIST = os.path.join(os.path.dirname(__file__), "..", "..", "vuln_ui_vue", "dist")
+_DIST = os.path.join(os.path.dirname(__file__), "..", "vuln_ui_vue", "dist")
 _DIST = os.path.normpath(_DIST)
 
 if os.path.isdir(_DIST):
