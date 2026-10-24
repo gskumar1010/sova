@@ -543,8 +543,13 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 """, unsafe_allow_html=True)
 
 # ── Top banner ────────────────────────────────────────────────────────────────
+# Toggle chat state from query param (set by the HTML button in the banner)
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
+if st.query_params.get("chat_toggle") == "1":
+    st.session_state.chat_open = not st.session_state.chat_open
+    st.query_params.clear()
+    st.rerun()
 _chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
 _lb64 = _logo_b64()
 _logo_img = (
@@ -565,19 +570,16 @@ st.markdown(f"""
     <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
     <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
     <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-    <button id="chat-fab-btn" onclick="document.querySelector('[data-testid=stButton] button').click()"
-      style="background:linear-gradient(135deg,#0060aa,#0084cc);border:1px solid rgba(0,180,255,0.35);
-             border-radius:100px;padding:0.3rem 1rem;font-size:0.75rem;font-weight:600;color:#fff;
+    <a href="?chat_toggle=1" style="text-decoration:none;">
+      <button style="background:linear-gradient(135deg,#0060aa,#0084cc);
+             border:1px solid rgba(0,180,255,0.35);border-radius:100px;
+             padding:0.35rem 1.1rem;font-size:0.75rem;font-weight:600;color:#fff;
              cursor:pointer;box-shadow:0 0 16px rgba(0,132,204,0.3);white-space:nowrap;">
-      {_chat_btn_icon} Agent Chat
-    </button>
+        {_chat_btn_icon} Agent Chat
+      </button>
+    </a>
   </div>
 </div>
-<script>
-  // Restore hidden Streamlit button so its click can be triggered
-  const stBtn = document.querySelector('[data-testid="stButton"] button');
-  if (stBtn) stBtn.closest('[data-testid="stButton"]').style.display = 'none';
-</script>
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
@@ -598,20 +600,6 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "last_scan_id" not in st.session_state:
     st.session_state.last_scan_id = None
-
-# Hidden Streamlit button — triggered by the HTML button in the banner via JS
-_fab_label = "✕ Chat" if st.session_state.chat_open else "💬 Agent Chat"
-if st.button(_fab_label, key="chat_toggle"):
-    st.session_state.chat_open = not st.session_state.chat_open
-    st.rerun()
-# Hide only the chat_toggle button from its flow position (HTML button in banner handles it)
-st.markdown("""
-<style>
-div[data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]:first-child) {
-  visibility: hidden; height: 0; overflow: hidden; margin: 0; padding: 0;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # ── Scan input ────────────────────────────────────────────────────────────────
 # ── Recent scans (compact row) ────────────────────────────────────────────────
@@ -1235,7 +1223,25 @@ def _chat_panel():
             )
 
 if st.session_state.chat_open:
-    _chat_panel()
+    # Shrink main content and render chat in a right column
+    st.markdown("""
+    <style>
+    .block-container { max-width: calc(100% - 420px) !important; }
+    </style>
+    """, unsafe_allow_html=True)
+    with st.container():
+        st.markdown("""
+        <style>
+        /* Last stVerticalBlock inside stMain becomes the right panel */
+        [data-testid="stMain"] > div > div > div[data-testid="stVerticalBlock"] > div:last-child {
+          position: fixed; top: 0; right: 0; width: 400px; height: 100vh;
+          background: rgba(5,8,16,0.98); border-left: 1px solid rgba(0,180,255,0.2);
+          box-shadow: -8px 0 32px rgba(0,0,0,0.5); overflow-y: auto;
+          z-index: 8000; padding: 0; backdrop-filter: blur(20px);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        _chat_panel()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
