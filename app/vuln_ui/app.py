@@ -586,9 +586,8 @@ div[data-testid="stHorizontalBlock"] > div:last-child {
 }
 </style>""", unsafe_allow_html=True)
 
-# ── Chat panel — renders at top, above scan input and results ─────────────────
-if st.session_state.chat_open:
-    _chat_panel()
+# ── Chat panel placeholder — filled after _chat_panel() is defined below ──────
+_chat_placeholder = st.empty()
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
@@ -1233,6 +1232,11 @@ def _chat_panel():
                 '</div>',
                 unsafe_allow_html=True,
             )
+
+# Fill the placeholder at the top with the chat panel now that it's defined
+if st.session_state.chat_open:
+    with _chat_placeholder:
+        _chat_panel()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
