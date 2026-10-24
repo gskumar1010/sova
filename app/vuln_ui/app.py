@@ -508,6 +508,28 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 }
 [data-testid="stChatInput"] textarea::placeholder { color: #334155 !important; }
 
+/* ── Chat panel ── */
+.chat-panel {
+  background: rgba(8,12,24,0.97);
+  border: 1px solid rgba(0,180,255,0.18);
+  border-radius: 12px;
+  padding: 0;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+.chat-panel-header {
+  background: rgba(0,180,255,0.06);
+  border-bottom: 1px solid rgba(0,180,255,0.12);
+  padding: 0.6rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.chat-panel-body { padding: 0.75rem 1rem; }
+
 #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -547,6 +569,8 @@ if "scan_history" not in st.session_state:
     st.session_state.scan_history = []
 if "egress_blocked" not in st.session_state:
     st.session_state.egress_blocked = False
+if "chat_open" not in st.session_state:
+    st.session_state.chat_open = False
 if "last_scan_id" not in st.session_state:
     st.session_state.last_scan_id = None
 
@@ -1110,56 +1134,59 @@ if _sarif:
     )
 
 # ── Agent conversation ────────────────────────────────────────────────────────
-# ── Agent output accordion ────────────────────────────────────────────────────
-if st.session_state.history:
-    label = f"🤖 Agent Output  ({len([h for h in st.session_state.history if h[0]=='assistant'])} response{'s' if len([h for h in st.session_state.history if h[0]=='assistant'])!=1 else ''})"
-    with st.expander(label, expanded=False):
-        for role, item in st.session_state.history:
-            if role == "user":
-                with st.chat_message("user"):
-                    st.markdown(f"`{item}`")
-            else:
-                with st.chat_message("assistant"):
-                    if item.egress_blocked:
-                        st.markdown("""
-                        <div class="egress-block">
-                          🚫 <strong>Egress blocked by OpenShell</strong> — agent attempted to reach a non-allowlisted host. Connection denied by policy.
-                        </div>
-                        """, unsafe_allow_html=True)
-                    st.markdown(item.text)
-        st.divider()
-        # Custom prompt inside the accordion
-        custom_prompt = st.chat_input("Send a custom prompt to the agent…", key="accordion_prompt")
-        if custom_prompt:
-            st.session_state.history.append(("user", custom_prompt))
-            with st.spinner("🤖 Agent running…"):
-                try:
-                    scan_id = str(uuid.uuid4())
-                    st.session_state.last_scan_id = scan_id
-                    result = run_agent(custom_prompt, scan_id=scan_id, _sid=scan_id)
-                    st.session_state.history.append(("assistant", result))
-                    if result.sarif_data:
-                        st.session_state.current_sarif = result.sarif_data
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Agent error: {str(e)}")
-
-# ── Custom prompt (top-level fallback when no history yet) ────────────────────
+# ── Persistent Agent Chat Panel ───────────────────────────────────────────────
+st.markdown("<hr>", unsafe_allow_html=True)
+n_msgs = len([h for h in st.session_state.history if h[0] == "assistant"])
+if st.session_state.chat_open:
+    btn_label = "💬  Close Agent Chat"
+elif n_msgs:
+    plural = "s" if n_msgs != 1 else ""
+    btn_label = f"💬  Open Agent Chat  ·  {n_msgs} message{plural}"
 else:
-    custom_prompt = st.chat_input("Send a custom prompt to the security agent...")
-if custom_prompt:
-    st.session_state.history.append(("user", custom_prompt))
-    with st.spinner("🤖 Agent running…"):
-        try:
-            scan_id = str(uuid.uuid4())
-            st.session_state.last_scan_id = scan_id
-            result = run_agent(custom_prompt, scan_id=scan_id, _sid=scan_id)
-            st.session_state.history.append(("assistant", result))
-            if result.sarif_data:
-                st.session_state.current_sarif = result.sarif_data
-            st.rerun()
-        except Exception as e:
-            st.error(f"Agent error: {str(e)}")
+    btn_label = "💬  Open Agent Chat"
+if st.button(btn_label, key="chat_toggle"):
+    st.session_state.chat_open = not st.session_state.chat_open
+    st.rerun()
+
+if st.session_state.chat_open:
+    st.markdown("""
+    <div class="chat-panel">
+      <div class="chat-panel-header">
+        <span>🤖</span> Agent Chat — Kata VM Sandbox
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Conversation history
+    for role, item in st.session_state.history:
+        if role == "user":
+            with st.chat_message("user"):
+                st.markdown(f"`{item}`")
+        else:
+            with st.chat_message("assistant"):
+                if item.egress_blocked:
+                    st.markdown("""
+                    <div class="egress-block">
+                      🚫 <strong>Egress blocked by OpenShell</strong> — connection denied by policy.
+                    </div>
+                    """, unsafe_allow_html=True)
+                st.markdown(item.text)
+
+    # Input
+    custom_prompt = st.chat_input("Send a prompt to the security agent…", key="chat_panel_input")
+    if custom_prompt:
+        st.session_state.history.append(("user", custom_prompt))
+        with st.spinner("Agent running in Kata VM sandbox…"):
+            try:
+                scan_id = str(uuid.uuid4())
+                st.session_state.last_scan_id = scan_id
+                result = run_agent(custom_prompt, scan_id=scan_id, _sid=scan_id)
+                st.session_state.history.append(("assistant", result))
+                if result.sarif_data:
+                    st.session_state.current_sarif = result.sarif_data
+                st.rerun()
+            except Exception as e:
+                st.error(f"Agent error: {str(e)}")
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
