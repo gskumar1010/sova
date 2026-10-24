@@ -12,12 +12,17 @@ import requests as _requests
 
 import base64
 from pathlib import Path
+from PIL import Image
 
 from agent_client import run_agent, run_scan_steps, stage_and_run, validate_git_url, parse_sarif, get_trace
 
 def _logo_b64() -> str:
     p = Path(__file__).parent / "sova_logo.png"
     return base64.b64encode(p.read_bytes()).decode() if p.exists() else ""
+
+def _logo_image():
+    p = Path(__file__).parent / "sova_logo.png"
+    return Image.open(p) if p.exists() else "🛡"
 
 ORCHESTRATOR_URL = "http://vuln-orchestrator-api:8080"
 
@@ -68,7 +73,7 @@ def _poll_progress(scan_id: str) -> list:
 
 st.set_page_config(
     page_title="SOVA — Sovereign Vulnerability Analysis",
-    page_icon="🛡",
+    page_icon=_logo_image(),
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -545,43 +550,65 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 # ── Top banner ────────────────────────────────────────────────────────────────
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
-# Detect query param toggle from the HTML pill button in the banner
-if st.query_params.get("chat_toggle") == "1":
-    st.session_state.chat_open = not st.session_state.chat_open
-    st.query_params.clear()
-    st.rerun()
 _chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
-_chat_btn_style = "background:rgba(0,180,255,0.15);border-color:rgba(0,180,255,0.5);color:#00b4ff;" if st.session_state.chat_open else ""
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
     f'class="topbanner-logo" style="width:auto;height:155px;">'
     if _lb64 else "🛡"
 )
-st.markdown(f"""
-<div class="topbanner">
-  <div class="topbanner-left">
-    {_logo_img}
-    <div class="topbanner-brand">
-      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
+_col_chat, _col_main = st.columns([1, 9])
+with _col_chat:
+    _btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
+    if st.button(_btn_txt, key="chat_toggle"):
+        st.session_state.chat_open = not st.session_state.chat_open
+        st.rerun()
+with _col_main:
+    st.markdown(f"""
+    <div class="topbanner">
+      <div class="topbanner-left">
+        {_logo_img}
+        <div class="topbanner-brand">
+          <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
+        </div>
+      </div>
+      <div class="topbanner-right">
+        <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+        <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
+        <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
+        <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+      </div>
     </div>
-  </div>
-  <div class="topbanner-right">
-    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
-    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
-    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
-    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-    <button onclick="window.parent.location.href='?chat_toggle=1'"
-      style="display:inline-flex;align-items:center;gap:0.35rem;
-             background:rgba(0,180,255,0.08);border:1px solid rgba(0,180,255,0.35);
-             border-radius:100px;padding:0.28rem 0.85rem;font-size:0.72rem;
-             font-weight:600;color:#00b4ff;cursor:pointer;{_chat_btn_style}
-             font-family:Inter,sans-serif;letter-spacing:0.02em;">
-      {_chat_btn_icon} Chat
-    </button>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+# Style the chat button column to match the banner background
+st.markdown("""<style>
+div[data-testid="stHorizontalBlock"]:first-of-type {
+  gap: 0 !important; margin: -0.25rem -2rem 0 -2rem !important;
+  background: rgba(5,8,16,0.99);
+  border-bottom: 1px solid rgba(0,180,255,0.15);
+  align-items: stretch !important;
+}
+div[data-testid="stHorizontalBlock"]:first-of-type > div:first-child {
+  background: rgba(5,8,16,0.99);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 1rem; border-right: 1px solid rgba(0,180,255,0.1);
+}
+div[data-testid="stHorizontalBlock"]:first-of-type > div:first-child button {
+  background: rgba(0,180,255,0.08) !important;
+  border: 1px solid rgba(0,180,255,0.3) !important;
+  border-radius: 8px !important;
+  color: #00b4ff !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  padding: 0.4rem 0.9rem !important;
+}
+div[data-testid="stHorizontalBlock"]:first-of-type > div:first-child button:hover {
+  background: rgba(0,180,255,0.15) !important;
+}
+div[data-testid="stHorizontalBlock"]:first-of-type > div:last-child {
+  background: transparent;
+}
+</style>""", unsafe_allow_html=True)
 
 # ── Chat panel placeholder — filled after _chat_panel() is defined below ──────
 _chat_placeholder = st.empty()
