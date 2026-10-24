@@ -571,6 +571,8 @@ if "egress_blocked" not in st.session_state:
     st.session_state.egress_blocked = False
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []   # isolated from scan history
 if "last_scan_id" not in st.session_state:
     st.session_state.last_scan_id = None
 
@@ -1136,7 +1138,7 @@ if _sarif:
 # ── Agent conversation ────────────────────────────────────────────────────────
 # ── Persistent Agent Chat Panel ───────────────────────────────────────────────
 st.markdown("<hr>", unsafe_allow_html=True)
-n_msgs = len([h for h in st.session_state.history if h[0] == "assistant"])
+n_msgs = len([h for h in st.session_state.chat_history if h[0] == "assistant"])
 if st.session_state.chat_open:
     btn_label = "💬  Close Agent Chat"
 elif n_msgs:
@@ -1157,36 +1159,22 @@ if st.session_state.chat_open:
     </div>
     """, unsafe_allow_html=True)
 
-    # Conversation history
-    for role, item in st.session_state.history:
-        if role == "user":
-            with st.chat_message("user"):
-                st.markdown(f"`{item}`")
-        else:
-            with st.chat_message("assistant"):
-                if item.egress_blocked:
-                    st.markdown("""
-                    <div class="egress-block">
-                      🚫 <strong>Egress blocked by OpenShell</strong> — connection denied by policy.
-                    </div>
-                    """, unsafe_allow_html=True)
-                st.markdown(item.text)
+    # Isolated chat history — never touches scan state
+    for role, text in st.session_state.chat_history:
+        with st.chat_message(role):
+            st.markdown(text)
 
-    # Input
-    custom_prompt = st.chat_input("Send a prompt to the security agent…", key="chat_panel_input")
+    custom_prompt = st.chat_input("Ask the security agent anything…", key="chat_panel_input")
     if custom_prompt:
-        st.session_state.history.append(("user", custom_prompt))
+        st.session_state.chat_history.append(("user", custom_prompt))
         with st.spinner("Agent running in Kata VM sandbox…"):
             try:
-                scan_id = str(uuid.uuid4())
-                st.session_state.last_scan_id = scan_id
-                result = run_agent(custom_prompt, scan_id=scan_id, _sid=scan_id)
-                st.session_state.history.append(("assistant", result))
-                if result.sarif_data:
-                    st.session_state.current_sarif = result.sarif_data
-                st.rerun()
+                result = run_agent(custom_prompt)
+                st.session_state.chat_history.append(("assistant", result.text))
+                # Chat never overwrites scan SARIF or scan history
             except Exception as e:
-                st.error(f"Agent error: {str(e)}")
+                st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
+        st.rerun()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
