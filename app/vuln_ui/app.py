@@ -135,6 +135,7 @@ st.markdown("""
   font-weight: 500;
   color: #94a3b8;
   letter-spacing: 0.01em;
+  word-spacing: 0.35em;
 }
 .topbanner-title .initial {
   font-size: 1.55rem;
