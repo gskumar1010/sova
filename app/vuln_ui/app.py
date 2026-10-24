@@ -114,16 +114,16 @@ st.markdown("""
   overflow: visible;
 }
 .topbanner-logo {
-  /* Absolute so it doesn't affect banner height — overlaps top and bottom freely */
+  /* Flush to left wall, branch crosses the bottom border */
   position: absolute;
-  left: 2rem;
-  bottom: -28px;
+  left: 0;
+  bottom: -35px;
   z-index: 10;
   filter: drop-shadow(0 0 10px rgba(0,180,255,0.25));
 }
 .topbanner-left {
   display: flex; align-items: center; gap: 0.75rem;
-  padding-left: 9rem; /* leave room for the absolutely-positioned owl */
+  padding-left: 7rem; /* clear the owl which is ~85px wide at 130px height */
 }
 .topbanner-right {
   display: flex; align-items: center; gap: 0.4rem;
