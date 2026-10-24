@@ -1227,9 +1227,13 @@ with st.sidebar:
         _chat_panel()
 
 # Hidden toggle button — clicked by JS in banner button
-if st.button("_chat_toggle_hidden", key="chat_toggle", label_visibility="hidden"):
+if st.button("💬", key="chat_toggle"):
     st.session_state.chat_open = not st.session_state.chat_open
     st.rerun()
+st.markdown("""<style>
+[data-testid="stButton"]:has(button[data-testid="chat_toggle"]),
+div:has(> [data-testid="stButton"] > button[key="chat_toggle"]) { display:none!important; }
+</style>""", unsafe_allow_html=True)
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
