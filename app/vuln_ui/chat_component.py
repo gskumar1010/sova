@@ -33,8 +33,8 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "",
     btn_label = "✕ Close" if is_open else "💬 Chat"
 
     logo_html = (
-        f'<img src="data:image/png;base64,{logo_b64}" style="width:28px;height:28px;object-fit:contain;">'
-        if logo_b64 else "🛡"
+        f'<img src="data:image/png;base64,{logo_b64}" class="topbanner-logo">'
+        if logo_b64 else ""
     )
 
     return f"""<!DOCTYPE html>
