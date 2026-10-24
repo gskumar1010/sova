@@ -42,7 +42,8 @@ def build_chat_html(chat_history: list, is_open: bool, logo_b64: str = "") -> st
 <meta charset="utf-8">
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ background: transparent; font-family: Inter, -apple-system, sans-serif; overflow: hidden; }}
+  body {{ background: transparent; font-family: Inter, -apple-system, sans-serif; overflow: hidden; pointer-events: none; }}
+  #chat-fab, #chat-drawer {{ pointer-events: auto; }}
 
   /* ── Trigger button that lives in the banner area ── */
   #chat-fab {{

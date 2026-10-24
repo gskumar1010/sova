@@ -603,7 +603,14 @@ _chat_html = build_chat_html(
     is_open=st.session_state.chat_open,
     logo_b64=_lb64,
 )
-components.html(_chat_html, height=0, scrolling=False)
+components.html(_chat_html, height=900, scrolling=False)
+# Collapse the space the iframe takes up — pointer-events:none lets clicks through
+st.markdown("""<style>
+iframe[title="components.v1.html"] {
+  margin-bottom: -900px !important;
+  pointer-events: none;
+}
+</style>""", unsafe_allow_html=True)
 
 
 # ── Session state ─────────────────────────────────────────────────────────────
