@@ -1176,7 +1176,8 @@ if st.button(btn_label, key="chat_toggle"):
     st.session_state.chat_open = not st.session_state.chat_open
     st.rerun()
 
-if st.session_state.chat_open:
+@st.fragment
+def _chat_panel():
     st.markdown("""
     <div class="chat-panel-wrap">
       <div class="chat-panel">
@@ -1185,7 +1186,6 @@ if st.session_state.chat_open:
     </div>
     """, unsafe_allow_html=True)
 
-    # Input row — top of the panel
     col_msg, col_send = st.columns([6, 1])
     with col_msg:
         user_input = st.text_input(
@@ -1210,7 +1210,6 @@ if st.session_state.chat_open:
                 st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
         st.rerun()
 
-    # Messages — newest first, inside the bordered area
     if st.session_state.chat_history:
         for role, text in reversed(st.session_state.chat_history):
             with st.chat_message(role):
@@ -1222,6 +1221,9 @@ if st.session_state.chat_open:
             '</div>',
             unsafe_allow_html=True,
         )
+
+if st.session_state.chat_open:
+    _chat_panel()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
