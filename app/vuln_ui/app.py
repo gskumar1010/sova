@@ -583,6 +583,10 @@ div[data-testid="stHorizontalBlock"]:has(button[data-testid="baseButton-primary"
 }
 </style>""", unsafe_allow_html=True)
 
+# ── Chat panel — renders at top, above scan input and results ─────────────────
+if st.session_state.chat_open:
+    _chat_panel()
+
 # ── Session state ─────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -1226,9 +1230,6 @@ def _chat_panel():
                 '</div>',
                 unsafe_allow_html=True,
             )
-
-if st.session_state.chat_open:
-    _chat_panel()
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
