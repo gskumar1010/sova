@@ -543,6 +543,7 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 """, unsafe_allow_html=True)
 
 # ── Top banner ────────────────────────────────────────────────────────────────
+_chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
@@ -562,8 +563,19 @@ st.markdown(f"""
     <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
     <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
     <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+    <button id="chat-fab-btn" onclick="document.querySelector('[data-testid=stButton] button').click()"
+      style="background:linear-gradient(135deg,#0060aa,#0084cc);border:1px solid rgba(0,180,255,0.35);
+             border-radius:100px;padding:0.3rem 1rem;font-size:0.75rem;font-weight:600;color:#fff;
+             cursor:pointer;box-shadow:0 0 16px rgba(0,132,204,0.3);white-space:nowrap;">
+      {_chat_btn_icon} Agent Chat
+    </button>
   </div>
 </div>
+<script>
+  // Restore hidden Streamlit button so its click can be triggered
+  const stBtn = document.querySelector('[data-testid="stButton"] button');
+  if (stBtn) stBtn.closest('[data-testid="stButton"]').style.display = 'none';
+</script>
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
@@ -585,35 +597,16 @@ if "chat_history" not in st.session_state:
 if "last_scan_id" not in st.session_state:
     st.session_state.last_scan_id = None
 
-# ── Fixed chat FAB button (top-right corner) ──────────────────────────────────
+# Hidden Streamlit button — triggered by the HTML button in the banner via JS
 _fab_label = "✕ Chat" if st.session_state.chat_open else "💬 Agent Chat"
 if st.button(_fab_label, key="chat_toggle"):
     st.session_state.chat_open = not st.session_state.chat_open
     st.rerun()
-# Style that button as a fixed FAB at top-right
+# Hide only the chat_toggle button from its flow position (HTML button in banner handles it)
 st.markdown("""
 <style>
-div[data-testid="stButton"]:has(button[data-testid="baseButton-secondary"][kind="secondary"]) {
-  display: none;
-}
-/* Target by key — Streamlit adds aria-label matching the button text */
-div[data-testid="stMainBlockContainer"] > div > div > div[data-testid="stButton"]:nth-child(2) button,
-button[aria-label="💬 Agent Chat"],
-button[aria-label="✕ Chat"] {
-  position: fixed !important;
-  top: 0.7rem !important;
-  right: 1.5rem !important;
-  z-index: 9999 !important;
-  background: linear-gradient(135deg,#0060aa,#0084cc) !important;
-  border: 1px solid rgba(0,180,255,0.35) !important;
-  border-radius: 100px !important;
-  color: #fff !important;
-  font-size: 0.75rem !important;
-  font-weight: 600 !important;
-  padding: 0.3rem 1rem !important;
-  min-height: unset !important;
-  height: auto !important;
-  box-shadow: 0 0 16px rgba(0,132,204,0.3) !important;
+div[data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]:first-child) {
+  visibility: hidden; height: 0; overflow: hidden; margin: 0; padding: 0;
 }
 </style>
 """, unsafe_allow_html=True)
