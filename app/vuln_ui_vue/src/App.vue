@@ -125,6 +125,7 @@ function now() {
   width: 100%;
   margin: 0 auto;
   padding: 2rem;
+  margin-top: 2rem; /* space for owl branch overhanging banner border */
 }
 
 .error-panel {
