@@ -509,26 +509,33 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 [data-testid="stChatInput"] textarea::placeholder { color: #334155 !important; }
 
 /* ── Chat panel ── */
+.chat-panel-wrap {
+  border: 1px solid rgba(0,180,255,0.22);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+  box-shadow: 0 0 24px rgba(0,180,255,0.06), inset 0 0 0 1px rgba(0,180,255,0.04);
+}
 .chat-panel {
   background: rgba(8,12,24,0.97);
-  border: 1px solid rgba(0,180,255,0.18);
-  border-radius: 12px;
   padding: 0;
-  margin-top: 1rem;
-  overflow: hidden;
 }
 .chat-panel-header {
-  background: rgba(0,180,255,0.06);
-  border-bottom: 1px solid rgba(0,180,255,0.12);
-  padding: 0.6rem 1rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  background: linear-gradient(90deg, rgba(0,180,255,0.09) 0%, rgba(0,180,255,0.03) 100%);
+  border-bottom: 1px solid rgba(0,180,255,0.15);
+  padding: 0.55rem 1rem;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: #475569;
   display: flex; align-items: center; gap: 0.5rem;
 }
-.chat-panel-body { padding: 0.75rem 1rem; }
+.chat-panel-input-row {
+  padding: 0.75rem 1rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.chat-panel-messages { padding: 0.5rem 1rem 0.75rem; }
 
 #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
 </style>
@@ -1171,14 +1178,14 @@ if st.button(btn_label, key="chat_toggle"):
 
 if st.session_state.chat_open:
     st.markdown("""
-    <div class="chat-panel">
-      <div class="chat-panel-header">
-        <span>🤖</span> Agent Chat — Kata VM Sandbox
+    <div class="chat-panel-wrap">
+      <div class="chat-panel">
+        <div class="chat-panel-header"><span>🤖</span> Agent Chat — Kata VM Sandbox</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Input at the top
+    # Input row — top of the panel
     col_msg, col_send = st.columns([6, 1])
     with col_msg:
         user_input = st.text_input(
@@ -1203,13 +1210,18 @@ if st.session_state.chat_open:
                 st.session_state.chat_history.append(("assistant", f"Error: {str(e)}"))
         st.rerun()
 
-    # Messages — newest first
+    # Messages — newest first, inside the bordered area
     if st.session_state.chat_history:
-        st.markdown("<div style='margin-top:0.75rem;'>", unsafe_allow_html=True)
         for role, text in reversed(st.session_state.chat_history):
             with st.chat_message(role):
                 st.markdown(text)
-        st.markdown("</div>", unsafe_allow_html=True)
+    elif not st.session_state.chat_history:
+        st.markdown(
+            '<div style="color:#334155;font-size:0.82rem;padding:0.5rem 0 0.25rem;text-align:center;">'
+            'No messages yet — ask the agent anything about the scan results or the codebase.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
 # ── Debug trace log ───────────────────────────────────────────────────────────
 if st.session_state.get("last_scan_id"):
