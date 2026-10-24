@@ -557,58 +557,29 @@ _logo_img = (
     f'class="topbanner-logo" style="width:auto;height:155px;">'
     if _lb64 else "🛡"
 )
-_col_chat, _col_main = st.columns([1, 9])
-with _col_chat:
+st.markdown(f"""
+<div class="topbanner">
+  <div class="topbanner-left">
+    {_logo_img}
+    <div class="topbanner-brand">
+      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
+    </div>
+  </div>
+  <div class="topbanner-right">
+    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
+    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
+    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+_col_sp, _col_btn = st.columns([5, 1])
+with _col_btn:
     _btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
-    if st.button(_btn_txt, key="chat_toggle"):
+    if st.button(_btn_txt, key="chat_toggle", use_container_width=True):
         st.session_state.chat_open = not st.session_state.chat_open
         st.rerun()
-with _col_main:
-    st.markdown(f"""
-    <div class="topbanner">
-      <div class="topbanner-left">
-        {_logo_img}
-        <div class="topbanner-brand">
-          <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
-        </div>
-      </div>
-      <div class="topbanner-right">
-        <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
-        <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
-        <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
-        <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-# Style the chat button column to match the banner background
-st.markdown("""<style>
-div[data-testid="stHorizontalBlock"]:first-of-type {
-  gap: 0 !important; margin: -0.25rem -2rem 0 -2rem !important;
-  background: rgba(5,8,16,0.99);
-  border-bottom: 1px solid rgba(0,180,255,0.15);
-  align-items: stretch !important;
-}
-div[data-testid="stHorizontalBlock"]:first-of-type > div:first-child {
-  background: rgba(5,8,16,0.99);
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 1rem; border-right: 1px solid rgba(0,180,255,0.1);
-}
-div[data-testid="stHorizontalBlock"]:first-of-type > div:first-child button {
-  background: rgba(0,180,255,0.08) !important;
-  border: 1px solid rgba(0,180,255,0.3) !important;
-  border-radius: 8px !important;
-  color: #00b4ff !important;
-  font-size: 0.78rem !important;
-  font-weight: 600 !important;
-  padding: 0.4rem 0.9rem !important;
-}
-div[data-testid="stHorizontalBlock"]:first-of-type > div:first-child button:hover {
-  background: rgba(0,180,255,0.15) !important;
-}
-div[data-testid="stHorizontalBlock"]:first-of-type > div:last-child {
-  background: transparent;
-}
-</style>""", unsafe_allow_html=True)
 
 # ── Chat panel placeholder — filled after _chat_panel() is defined below ──────
 _chat_placeholder = st.empty()
