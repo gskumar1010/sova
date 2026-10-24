@@ -47,6 +47,7 @@ defineEmits(['toggle-chat'])
   gap: 0.5rem;
   overflow: visible;
   position: relative;
+  z-index: 2; /* sit above main content so owl branch shows */
 }
 
 .banner-left {
