@@ -106,9 +106,10 @@ st.markdown("""
   padding: 4rem 2.5rem 0.65rem;
   margin-bottom: 1.75rem;
   flex-wrap: wrap; gap: 0.5rem;
-  width: calc(100% + 4rem);
-  margin-left: -2rem;
-  margin-right: -2rem;
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
   margin-top: -0.25rem;
   overflow: visible;
 }
@@ -544,47 +545,43 @@ hr { border-color: rgba(0,180,255,0.08) !important; margin: 1.5rem 0 !important;
 # ── Top banner ────────────────────────────────────────────────────────────────
 if "chat_open" not in st.session_state:
     st.session_state.chat_open = False
+# Detect query param toggle from the HTML pill button in the banner
+if st.query_params.get("chat_toggle") == "1":
+    st.session_state.chat_open = not st.session_state.chat_open
+    st.query_params.clear()
+    st.rerun()
 _chat_btn_icon = "✕" if st.session_state.chat_open else "💬"
+_chat_btn_style = "background:rgba(0,180,255,0.15);border-color:rgba(0,180,255,0.5);color:#00b4ff;" if st.session_state.chat_open else ""
 _lb64 = _logo_b64()
 _logo_img = (
     f'<img src="data:image/png;base64,{_lb64}" '
     f'class="topbanner-logo" style="width:auto;height:155px;">'
     if _lb64 else "🛡"
 )
-_btn_txt = "✕ Chat" if st.session_state.chat_open else "💬 Chat"
-_col_banner, _col_btn = st.columns([10, 1])
-with _col_banner:
-    st.markdown(f"""
-    <div class="topbanner">
-      <div class="topbanner-left">
-        {_logo_img}
-        <div class="topbanner-brand">
-          <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
-        </div>
-      </div>
-      <div class="topbanner-right">
-        <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
-        <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
-        <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
-        <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
-      </div>
+st.markdown(f"""
+<div class="topbanner">
+  <div class="topbanner-left">
+    {_logo_img}
+    <div class="topbanner-brand">
+      <div class="topbanner-title"><span class="initial">S</span>overeign <span class="initial">O</span>versight &amp; <span class="initial">V</span>ulnerability <span class="initial">A</span>gent</div>
     </div>
-    """, unsafe_allow_html=True)
-with _col_btn:
-    st.markdown('<div style="height:1.2rem;"></div>', unsafe_allow_html=True)
-    if st.button(_btn_txt, key="chat_toggle", use_container_width=True):
-        st.session_state.chat_open = not st.session_state.chat_open
-        st.rerun()
-# Match button column background to banner
-st.markdown("""<style>
-div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
-div[data-testid="stHorizontalBlock"] > div:last-child {
-  background: linear-gradient(90deg, rgba(0,25,50,0.96), rgba(5,8,16,0.99));
-  border-bottom: 1px solid rgba(0,180,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 0.5rem;
-}
-</style>""", unsafe_allow_html=True)
+  </div>
+  <div class="topbanner-right">
+    <div class="pill"><span class="dot dot-green"></span>Kata VM</div>
+    <div class="pill"><span class="dot dot-cyan"></span>OpenShell</div>
+    <div class="pill"><span class="dot dot-red"></span>Egress Blocked</div>
+    <div class="pill" style="color:#475569;font-size:0.68rem;border-color:rgba(255,255,255,0.06);">Red Hat OpenShift AI · DEMOJam 2027</div>
+    <button onclick="window.parent.location.href='?chat_toggle=1'"
+      style="display:inline-flex;align-items:center;gap:0.35rem;
+             background:rgba(0,180,255,0.08);border:1px solid rgba(0,180,255,0.35);
+             border-radius:100px;padding:0.28rem 0.85rem;font-size:0.72rem;
+             font-weight:600;color:#00b4ff;cursor:pointer;{_chat_btn_style}
+             font-family:Inter,sans-serif;letter-spacing:0.02em;">
+      {_chat_btn_icon} Chat
+    </button>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Chat panel placeholder — filled after _chat_panel() is defined below ──────
 _chat_placeholder = st.empty()
