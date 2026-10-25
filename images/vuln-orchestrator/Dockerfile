@@ -30,6 +30,10 @@ RUN pip install --no-cache-dir \
 COPY app/vuln_orchestrator/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install openshell SDK for sandbox communication
+# Separate step with --upgrade to resolve protobuf version cleanly
+RUN pip install --no-cache-dir --upgrade "protobuf>=6.33.5" "openshell>=0.1.2"
+
 # Copy application code
 COPY app/__init__.py /svc/app/__init__.py
 COPY app/vuln_orchestrator /svc/app/vuln_orchestrator
