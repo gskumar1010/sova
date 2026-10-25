@@ -398,9 +398,28 @@ def api_chat(request: ChatRequest):
         return {"role": "assistant", "text": f"Agent unavailable: {e}"}
 
     try:
+        # Build context-aware prompt if a scan_id is provided
+        prompt = request.message
+        if request.scan_id and request.scan_id in _scan_state:
+            state = _scan_state[request.scan_id]
+            summary = state.get("summary") or {}
+            if summary:
+                top_rules = ", ".join(
+                    f"{r['ruleId']}({r['count']})"
+                    for r in summary.get("top_rules", [])[:5]
+                )
+                context = (
+                    f"[Scan context: {summary.get('total', 0)} total findings — "
+                    f"Critical:{summary.get('critical',0)} High:{summary.get('high',0)} "
+                    f"Med:{summary.get('medium',0)} Low:{summary.get('low',0)}. "
+                    f"Top rules: {top_rules}. "
+                    f"Results are at /sandbox/tmp/semgrep.sarif and /sandbox/tmp/bandit.json]\n\n"
+                )
+                prompt = context + request.message
+
         r = client.exec(
             sandbox=SANDBOX,
-            command=["opencode", "run", request.message],
+            command=["opencode", "run", prompt],
             workspace=WORKSPACE,
             timeout_seconds=int(TIMEOUT),
             no_login_shell=True,
