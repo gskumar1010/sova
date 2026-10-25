@@ -121,10 +121,10 @@ function now() {
 
 .main-content {
   flex: 1;
-  max-width: 1200px;
+  max-width: 1560px; /* ~30% wider: was 1200px */
   width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 3rem;
   margin-top: 2rem; /* space for owl branch overhanging banner border */
 }
 
