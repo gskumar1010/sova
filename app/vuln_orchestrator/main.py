@@ -181,8 +181,17 @@ def _summarise_sarif(sarif: dict) -> dict:
             level = result.get("level", "note")
             rule_id = result.get("ruleId", "UNKNOWN")
             severity = {"error": "high", "warning": "medium", "note": "low"}.get(level, "low")
-            if "injection" in rule_id.lower() or "sql" in rule_id.lower():
+            rule_lower = rule_id.lower()
+            msg_lower = result.get("message", {}).get("text", "").lower()
+            # Elevate severity for dangerous patterns
+            if any(s in rule_lower for s in ["injection", "sql", "rce", "exec", "shell", "command", "code-execution", "deserializ"]):
                 severity = "critical"
+            elif any(s in rule_lower for s in ["secret", "credential", "hardcoded", "password", "apikey", "api-key", "aws", "token", "private-key"]):
+                severity = "critical"
+            elif any(s in rule_lower for s in ["subprocess", "shell-true", "shell_true", "b602", "b605", "b606"]):
+                severity = "high"
+            elif any(s in msg_lower for s in ["shell=true", "shell injection", "command injection", "arbitrary code"]):
+                severity = "high"
             counts[severity] = counts.get(severity, 0) + 1
             rule_freq[rule_id] = rule_freq.get(rule_id, 0) + 1
             locs = result.get("locations", [])
