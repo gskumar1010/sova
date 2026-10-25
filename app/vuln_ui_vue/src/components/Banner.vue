@@ -42,12 +42,9 @@ defineEmits(['toggle-chat'])
   justify-content: space-between;
   background: linear-gradient(90deg, rgba(5,8,16,0.99) 0%, rgba(0,25,50,0.96) 100%);
   border-bottom: 1px solid rgba(0,180,255,0.15);
-  padding: 4rem 2rem 0;
+  padding: 1.5rem 2rem 0;
   flex-wrap: wrap;
   gap: 0.5rem;
-  overflow: visible;
-  position: relative;
-  z-index: 2; /* sit above main content so owl branch shows */
 }
 
 .banner-left {
@@ -59,11 +56,11 @@ defineEmits(['toggle-chat'])
 .owl {
   height: 155px;
   width: auto;
-  position: relative;
-  bottom: -35px;
   flex-shrink: 0;
   filter: drop-shadow(0 0 10px rgba(0,180,255,0.25));
-  z-index: 10;
+  /* Pull the banner border UP so the branch appears to cross it */
+  margin-bottom: -35px;
+  align-self: flex-end;
 }
 
 .brand { padding-bottom: 0.65rem; }
