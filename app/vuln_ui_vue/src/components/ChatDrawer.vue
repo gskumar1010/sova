@@ -21,7 +21,15 @@
     </div>
 
     <div class="messages" ref="messagesEl">
-      <div v-if="messages.length === 0" class="empty">
+      <!-- Typing indicator while waiting for nemotron -->
+      <div v-if="sending" class="msg assistant typing-row">
+        <div class="avatar">🤖</div>
+        <div class="bubble typing">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="waiting-text">Waiting on nemotron…</span>
+        </div>
+      </div>
+      <div v-if="messages.length === 0 && !sending" class="empty">
         No messages yet. Ask the agent anything about the scan or codebase.
       </div>
       <div v-else>
@@ -207,5 +215,30 @@ async function send() {
 .msg.user .bubble {
   background: rgba(0,96,170,0.2);
   border-color: rgba(0,180,255,0.2);
+}
+
+.bubble.typing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #00b4ff;
+  animation: bounce 1.2s infinite;
+  flex-shrink: 0;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce {
+  0%,60%,100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+.waiting-text {
+  font-size: 0.75rem;
+  color: #475569;
+  font-style: italic;
+  letter-spacing: 0.02em;
 }
 </style>
