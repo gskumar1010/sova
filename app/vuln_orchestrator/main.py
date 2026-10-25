@@ -1,5 +1,5 @@
 """Vulnerability Orchestrator API: Manages vulnerability scans and tool execution."""
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -439,6 +439,76 @@ def api_chat(request: ChatRequest):
             client.close()
         except Exception:
             pass
+
+
+# ── Upload endpoint: scan a local tar.gz/zip without needing a Git URL ────────
+
+@app.post("/api/scan/upload")
+async def api_upload_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    """Accept a tar.gz or zip archive, extract and scan it."""
+    import io, tarfile, zipfile, shutil
+    scan_id = str(uuid.uuid4())
+    _progress[scan_id] = []
+    _scan_state[scan_id] = {"status": "running", "sarif": None, "summary": None}
+    scan_manager.create_scan(scan_id, f"upload:{file.filename}")
+
+    # Read uploaded file into memory
+    data = await file.read()
+
+    def run_uploaded_scan():
+        tmpdir = tempfile.mkdtemp()
+        try:
+            _emit(scan_id, "clone", "started", f"Extracting {file.filename}…")
+            buf = io.BytesIO(data)
+            if file.filename.endswith(".zip"):
+                with zipfile.ZipFile(buf) as z:
+                    z.extractall(tmpdir)
+            else:  # tar.gz / tgz
+                with tarfile.open(fileobj=buf) as t:
+                    t.extractall(tmpdir)
+            _emit(scan_id, "clone", "completed", f"{len(data)//1024} KB extracted")
+
+            _emit(scan_id, "semgrep", "started")
+            sg_out = os.path.join(tmpdir, "semgrep.sarif")
+            sg_result = run_semgrep(tmpdir, sg_out)
+            sg_sarif = sg_result.get("sarif", {}) if sg_result.get("status") == "success" else {}
+            sg_count = len(sg_sarif.get("runs", [{}])[0].get("results", [])) if sg_sarif else 0
+            _emit(scan_id, "semgrep", "completed", f"{sg_count} findings")
+
+            _emit(scan_id, "bandit", "started")
+            bn_out = os.path.join(tmpdir, "bandit.json")
+            bn_result = run_bandit(tmpdir, bn_out)
+            bn_count = len(bn_result.get("results", {}).get("results", [])) if bn_result.get("status") == "success" else 0
+            _emit(scan_id, "bandit", "completed", f"{bn_count} findings")
+
+            merged = {"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": []}
+            if sg_sarif and sg_sarif.get("runs"):
+                merged["runs"].extend(sg_sarif["runs"])
+            if bn_result.get("status") == "success":
+                bn_run = {"tool": {"driver": {"name": "Bandit", "rules": []}}, "results": []}
+                for issue in bn_result.get("results", {}).get("results", []):
+                    sev = issue.get("issue_severity", "MEDIUM").lower()
+                    bn_run["results"].append({
+                        "ruleId": issue.get("test_id", "BXX"),
+                        "level": {"high": "error", "medium": "warning", "low": "note"}.get(sev, "note"),
+                        "message": {"text": issue.get("issue_text", "")},
+                        "locations": [{"physicalLocation": {"artifactLocation": {"uri": issue.get("filename", "")}, "region": {"startLine": issue.get("line_number", 0)}}}]
+                    })
+                merged["runs"].append(bn_run)
+
+            summary = _summarise_sarif(merged)
+            scan_manager.store_sarif(scan_id, json.dumps(merged))
+            scan_manager.update_status(scan_id, "completed")
+            _scan_state[scan_id] = {"status": "completed", "sarif": merged, "summary": summary}
+            _emit(scan_id, "analysis", "completed", f"{summary['total']} total findings")
+        except Exception as exc:
+            _emit(scan_id, "clone", "failed", str(exc)[:200])
+            _scan_state[scan_id] = {"status": "failed", "error": str(exc), "sarif": None, "summary": None}
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    background_tasks.add_task(run_uploaded_scan)
+    return {"scan_id": scan_id, "status": "started", "filename": file.filename}
 
 
 # ── Static files for Vue frontend ────────────────────────────────────────────
