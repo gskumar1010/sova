@@ -12,16 +12,14 @@
       </div>
     </div>
     <div class="banner-right">
-      <span class="pill">
-        <span class="dot green"></span>Kata VM
-      </span>
-      <span class="pill">
-        <span class="dot cyan"></span>OpenShell
-      </span>
-      <span class="pill">
-        <span class="dot red"></span>Egress Blocked
-      </span>
-      <span class="pill dimmed">Red Hat OpenShift AI · DEMOJam 2027</span>
+      <!-- Pills pinned to the top-right corner -->
+      <div class="pills-top">
+        <span class="pill"><span class="dot green"></span>Kata VM</span>
+        <span class="pill"><span class="dot cyan"></span>OpenShell</span>
+        <span class="pill"><span class="dot red"></span>Egress Blocked</span>
+        <span class="pill dimmed">Red Hat OpenShift AI · DEMOJam 2027</span>
+      </div>
+      <!-- Chat button stays at the bottom of the banner -->
       <button class="chat-pill" :class="{ active: chatOpen }" @click="$emit('toggle-chat')">
         {{ chatOpen ? '✕ Chat' : '💬 Chat' }}
       </button>
@@ -85,10 +83,20 @@ defineEmits(['toggle-chat'])
 
 .banner-right {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  align-self: stretch;
+  padding: 0.6rem 0 0.65rem;
+  gap: 0.5rem;
+}
+
+.pills-top {
+  display: flex;
   align-items: center;
   gap: 0.4rem;
   flex-wrap: wrap;
-  padding-bottom: 0.65rem;
+  justify-content: flex-end;
 }
 
 .pill {
