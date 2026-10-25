@@ -231,8 +231,13 @@ function downloadSarif() {
   const blob = new Blob([JSON.stringify(sarif.value, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url; a.download = 'sova-report.sarif'; a.click()
-  URL.revokeObjectURL(url)
+  a.href = url
+  a.download = 'sova-report.sarif'
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 </script>
 
