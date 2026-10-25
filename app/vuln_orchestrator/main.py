@@ -401,7 +401,30 @@ _DIST = os.path.join(os.path.dirname(__file__), "..", "vuln_ui_vue", "dist")
 _DIST = os.path.normpath(_DIST)
 
 if os.path.isdir(_DIST):
+    # Mount /assets/ for hashed bundles
     app.mount("/assets", StaticFiles(directory=os.path.join(_DIST, "assets")), name="assets")
+    # Mount root-level public files (sova_logo.png, favicon, etc.)
+    # Must come before the SPA catch-all below
+    import mimetypes
+    _public_files = [f.name for f in __import__('pathlib').Path(_DIST).iterdir()
+                     if f.is_file() and f.name != "index.html"]
+
+    async def _serve_public(filename: str):
+        from fastapi.responses import FileResponse
+        fp = os.path.join(_DIST, filename)
+        if os.path.isfile(fp):
+            mt, _ = mimetypes.guess_type(fp)
+            return FileResponse(fp, media_type=mt or "application/octet-stream")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404)
+
+    for _pf in _public_files:
+        _pf_name = _pf  # capture in closure
+        app.add_api_route(
+            f"/{_pf_name}",
+            lambda fn=_pf_name: _serve_public(fn),
+            methods=["GET"], include_in_schema=False,
+        )
 
     @app.get("/", include_in_schema=False)
     @app.get("/{path:path}", include_in_schema=False)
