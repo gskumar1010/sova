@@ -23,7 +23,12 @@ def run_semgrep(target_path: str, output_path: Optional[str] = None) -> Dict[str
             "semgrep",
             "--config=p/security-audit",
             "--config=p/secrets",
+            "--config=p/owasp-top-ten",
+            "--config=p/javascript",
+            "--config=p/python",
             "--sarif",
+            "--metrics=off",       # don't phone home
+            "--no-git-ignore",     # scan everything
             f"--output={sarif_output}",
             target_path
         ]
