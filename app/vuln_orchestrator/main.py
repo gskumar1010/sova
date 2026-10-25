@@ -401,30 +401,21 @@ _DIST = os.path.join(os.path.dirname(__file__), "..", "vuln_ui_vue", "dist")
 _DIST = os.path.normpath(_DIST)
 
 if os.path.isdir(_DIST):
-    # Mount /assets/ for hashed bundles
+    # Serve ALL static files from dist (assets/, logo, favicon, etc.)
+    # html=False so index.html is NOT auto-served — our SPA route below handles that
     app.mount("/assets", StaticFiles(directory=os.path.join(_DIST, "assets")), name="assets")
-    # Mount root-level public files (sova_logo.png, favicon, etc.)
-    # Must come before the SPA catch-all below
-    import mimetypes
-    _public_files = [f.name for f in __import__('pathlib').Path(_DIST).iterdir()
-                     if f.is_file() and f.name != "index.html"]
 
-    async def _serve_public(filename: str):
-        from fastapi.responses import FileResponse
-        fp = os.path.join(_DIST, filename)
-        if os.path.isfile(fp):
-            mt, _ = mimetypes.guess_type(fp)
-            return FileResponse(fp, media_type=mt or "application/octet-stream")
-        from fastapi import HTTPException
+    # Explicit routes for known root-level public files
+    @app.get("/sova_logo.png", include_in_schema=False)
+    async def serve_logo():
+        return FileResponse(os.path.join(_DIST, "sova_logo.png"), media_type="image/png")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def serve_favicon():
+        p = os.path.join(_DIST, "favicon.ico")
+        if os.path.isfile(p):
+            return FileResponse(p, media_type="image/x-icon")
         raise HTTPException(status_code=404)
-
-    for _pf in _public_files:
-        _pf_name = _pf  # capture in closure
-        app.add_api_route(
-            f"/{_pf_name}",
-            lambda fn=_pf_name: _serve_public(fn),
-            methods=["GET"], include_in_schema=False,
-        )
 
     @app.get("/", include_in_schema=False)
     @app.get("/{path:path}", include_in_schema=False)
