@@ -242,7 +242,7 @@ def _run_full_scan(scan_id: str, git_url: str):
         _emit(scan_id, "semgrep", "started", "Fetching rulesets from semgrep.dev…")
         sg_out = os.path.join(tmpdir, "semgrep.sarif")
         sg_result = run_semgrep(tmpdir, sg_out)
-        sg_sarif = sg_result.get("sarif", {}) if sg_result.get("status") == "success" else {}
+        sg_sarif = sg_result.get("sarif", {}) if "sarif" in sg_result else {}
         sg_count = len(sg_sarif.get("runs", [{}])[0].get("results", [])) if sg_sarif else 0
         _emit(scan_id, "semgrep", "completed", f"{sg_count} findings")
 
@@ -250,7 +250,7 @@ def _run_full_scan(scan_id: str, git_url: str):
         _emit(scan_id, "bandit", "started", "Analyzing Python AST…")
         bn_out = os.path.join(tmpdir, "bandit.json")
         bn_result = run_bandit(tmpdir, bn_out)
-        bn_count = len(bn_result.get("results", {}).get("results", [])) if bn_result.get("status") == "success" else 0
+        bn_count = len(bn_result.get("results", {}).get("results", [])) if "results" in bn_result else 0
         _emit(scan_id, "bandit", "completed", f"{bn_count} findings")
 
         # ── Merge SARIF ────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ def _run_full_scan(scan_id: str, git_url: str):
             merged["runs"].extend(sg_sarif["runs"])
 
         # Convert bandit JSON to a minimal SARIF run
-        if bn_result.get("status") == "success":
+        if "results" in bn_result:
             bn_data = bn_result.get("results", {})
             bn_results_list = bn_data.get("results", [])
             bn_run = {
@@ -471,20 +471,20 @@ async def api_upload_scan(background_tasks: BackgroundTasks, file: UploadFile = 
             _emit(scan_id, "semgrep", "started")
             sg_out = os.path.join(tmpdir, "semgrep.sarif")
             sg_result = run_semgrep(tmpdir, sg_out)
-            sg_sarif = sg_result.get("sarif", {}) if sg_result.get("status") == "success" else {}
+            sg_sarif = sg_result.get("sarif", {}) if "sarif" in sg_result else {}
             sg_count = len(sg_sarif.get("runs", [{}])[0].get("results", [])) if sg_sarif else 0
             _emit(scan_id, "semgrep", "completed", f"{sg_count} findings")
 
             _emit(scan_id, "bandit", "started")
             bn_out = os.path.join(tmpdir, "bandit.json")
             bn_result = run_bandit(tmpdir, bn_out)
-            bn_count = len(bn_result.get("results", {}).get("results", [])) if bn_result.get("status") == "success" else 0
+            bn_count = len(bn_result.get("results", {}).get("results", [])) if "results" in bn_result else 0
             _emit(scan_id, "bandit", "completed", f"{bn_count} findings")
 
             merged = {"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": []}
             if sg_sarif and sg_sarif.get("runs"):
                 merged["runs"].extend(sg_sarif["runs"])
-            if bn_result.get("status") == "success":
+            if "results" in bn_result:
                 bn_run = {"tool": {"driver": {"name": "Bandit", "rules": []}}, "results": []}
                 for issue in bn_result.get("results", {}).get("results", []):
                     sev = issue.get("issue_severity", "MEDIUM").lower()
