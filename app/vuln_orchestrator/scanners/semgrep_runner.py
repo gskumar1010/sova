@@ -26,9 +26,18 @@ def run_semgrep(target_path: str, output_path: Optional[str] = None) -> Dict[str
             "--config=p/owasp-top-ten",
             "--config=p/javascript",
             "--config=p/python",
+            "--config=p/dockerfile",
             "--sarif",
-            "--metrics=off",       # don't phone home
-            "--no-git-ignore",     # scan everything
+            "--metrics=off",
+            "--no-git-ignore",
+            "--include=*.py",
+            "--include=*.js",
+            "--include=*.ts",
+            "--include=*.yaml",
+            "--include=*.yml",
+            "--include=*.json",
+            "--include=Dockerfile*",
+            "--include=*.tf",
             f"--output={sarif_output}",
             target_path
         ]
