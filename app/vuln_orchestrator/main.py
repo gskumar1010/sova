@@ -388,11 +388,38 @@ def api_full_result(scan_id: str):
 
 @app.post("/api/chat")
 def api_chat(request: ChatRequest):
-    """Stub chat endpoint — returns a canned response until OpenShell integration added."""
-    return {
-        "role": "assistant",
-        "text": f"(Agent chat integration coming soon. Your message: {request.message[:100]})"
-    }
+    """Run message through OpenCode agent in the Kata VM sandbox."""
+    from app.vuln_orchestrator.scan_service import _make_client, SANDBOX, WORKSPACE, TIMEOUT
+    import re
+
+    try:
+        client = _make_client()
+    except Exception as e:
+        return {"role": "assistant", "text": f"Agent unavailable: {e}"}
+
+    try:
+        r = client.exec(
+            sandbox=SANDBOX,
+            command=["opencode", "run", request.message],
+            workspace=WORKSPACE,
+            timeout_seconds=int(TIMEOUT),
+            no_login_shell=True,
+        )
+        raw = (r.stdout or "") + (r.stderr or "")
+        # Strip opencode build header and harmony tokens
+        clean = re.sub(r"(?m)^\s*>\s*build\b.*$", "", r.stdout or "").strip()
+        if "<channel|>" in clean:
+            clean = clean.rsplit("<channel|>", 1)[-1]
+        clean = re.sub(r"<\|?[^>\n]*\|?>", "", clean).strip()
+        text = clean or raw[:2000] or "No response from agent."
+        return {"role": "assistant", "text": text}
+    except Exception as e:
+        return {"role": "assistant", "text": f"Agent error: {e}"}
+    finally:
+        try:
+            client.close()
+        except Exception:
+            pass
 
 
 # ── Static files for Vue frontend ────────────────────────────────────────────
