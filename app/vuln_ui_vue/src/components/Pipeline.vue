@@ -29,7 +29,7 @@
         <span class="log-ts">{{ line.ts }}</span>
         <span>{{ line.text }}</span>
       </div>
-      <span class="cursor">▌ {{ elapsed }}</span>
+      <span class="elapsed-timer">{{ elapsed }}</span>
     </div>
   </div>
 </template>
@@ -225,6 +225,6 @@ watch(() => props.events, (evs) => {
 }
 .log-line { display: flex; gap: 0.6rem; }
 .log-ts { color: #334155; flex-shrink: 0; }
-.cursor { color: var(--cyan); animation: blink 1s step-end infinite; }
+.elapsed-timer { color: var(--text-muted); font-size: 0.78rem; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 </style>
