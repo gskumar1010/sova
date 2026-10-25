@@ -286,6 +286,9 @@ def _run_full_scan(scan_id: str, git_url: str):
         scan_manager.store_sarif(scan_id, sarif_str)
         scan_manager.update_status(scan_id, "completed")
 
+        # Summarise FIRST — used in AI prompt and final state
+        summary = _summarise_sarif(merged)
+
         # ── AI Analysis (direct MaaS call) ────────────────────────────────
         agent_text = ""
         maas_url = os.environ.get("OPENAI_BASE_URL", "")
@@ -323,7 +326,6 @@ def _run_full_scan(scan_id: str, git_url: str):
         else:
             _emit(scan_id, "analysis", "completed", f"{summary['total']} total findings")
 
-        summary = _summarise_sarif(merged)
         _scan_state[scan_id] = {
             "status": "completed", "sarif": merged, "summary": summary,
             "agent_text": agent_text,
