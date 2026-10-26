@@ -20,6 +20,15 @@
       <span class="blocked">✗ All other egress blocked</span>
     </div>
 
+    <!-- Repo identity -->
+    <div v-if="repoInfo" class="repo-header">
+      <img :src="repoInfo.avatarUrl" :alt="repoInfo.org" class="repo-avatar" @error="$event.target.style.display='none'" />
+      <div class="repo-meta">
+        <div class="repo-org">{{ repoInfo.org }}</div>
+        <div class="repo-name">{{ repoInfo.org }} / {{ repoInfo.repo }}</div>
+      </div>
+    </div>
+
     <!-- Section header -->
     <div class="section-header">
       Scan Results
@@ -206,6 +215,13 @@ const riskLabel = computed(() => {
   return 'LOW'
 })
 
+const repoInfo = computed(() => {
+  const url = props.result.git_url || ''
+  const m = url.match(/github\.com\/([^/]+)\/([^/.]+?)(?:\.git)?\/?$/)
+  if (!m) return null
+  return { org: m[1], repo: m[2], avatarUrl: `https://github.com/${m[1]}.png?size=80` }
+})
+
 const topRuleIds = computed(() =>
   (summary.value.top_rules || []).map(r => r.rule_id)
 )
@@ -327,6 +343,26 @@ function downloadSarif() {
 .sep { color: #334155; }
 .allowed { color: #22c55e; }
 .blocked { color: #ef4444; }
+
+.repo-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(8,12,24,0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 0.85rem 1.25rem;
+}
+.repo-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.repo-meta { display: flex; flex-direction: column; gap: 0.1rem; }
+.repo-org  { font-size: 0.68rem; color: #475569; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.repo-name { font-size: 0.95rem; color: #e2e8f0; font-weight: 600; font-family: var(--mono); }
 
 .section-header {
   font-size: 0.72rem;
