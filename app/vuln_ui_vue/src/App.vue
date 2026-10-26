@@ -225,7 +225,10 @@ function now() {
 }
 
 .history-strip {
+  margin-top: 2rem;
   margin-bottom: 1.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
 .history-label {
   font-size: 0.65rem;
