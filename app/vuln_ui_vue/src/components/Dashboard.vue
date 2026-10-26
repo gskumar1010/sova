@@ -30,27 +30,27 @@
     <div class="metrics-row">
       <div class="mcard risk" :style="{ '--risk-color': riskColor }">
         <div class="risk-badge">{{ riskLabel }} RISK</div>
-        <div class="mval" :style="{ color: riskColor }">{{ animRisk }}</div>
+        <div class="mval pop" :style="{ color: riskColor }">{{ summary.risk || 0 }}</div>
         <div class="mlbl">Risk Score</div>
       </div>
       <div class="mcard total">
-        <div class="mval cyan">{{ animTotal }}</div>
+        <div class="mval cyan pop">{{ summary.total || 0 }}</div>
         <div class="mlbl">Total</div>
       </div>
       <div class="mcard crit">
-        <div class="mval red">{{ animCritical }}</div>
+        <div class="mval red pop">{{ summary.severity_counts?.critical || 0 }}</div>
         <div class="mlbl">Critical</div>
       </div>
       <div class="mcard high">
-        <div class="mval orange">{{ animHigh }}</div>
+        <div class="mval orange pop">{{ summary.severity_counts?.high || 0 }}</div>
         <div class="mlbl">High</div>
       </div>
       <div class="mcard med">
-        <div class="mval yellow">{{ animMedium }}</div>
+        <div class="mval yellow pop">{{ summary.severity_counts?.medium || 0 }}</div>
         <div class="mlbl">Medium</div>
       </div>
       <div class="mcard low">
-        <div class="mval blue">{{ animLow }}</div>
+        <div class="mval blue pop">{{ summary.severity_counts?.low || 0 }}</div>
         <div class="mlbl">Low</div>
       </div>
     </div>
@@ -122,7 +122,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import Remediation from './Remediation.vue'
-import { useCountUp } from '../composables/useCountUp.js'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
@@ -156,13 +155,6 @@ const summary = computed(() => props.result.summary || {
   top_rules: [], findings: []
 })
 
-// Count-up animations for all metric cards
-const animRisk     = useCountUp(computed(() => summary.value.risk || 0), 1400)
-const animTotal    = useCountUp(computed(() => summary.value.total || 0), 1200)
-const animCritical = useCountUp(computed(() => summary.value.severity_counts?.critical || 0), 900)
-const animHigh     = useCountUp(computed(() => summary.value.severity_counts?.high || 0), 1000)
-const animMedium   = useCountUp(computed(() => summary.value.severity_counts?.medium || 0), 1100)
-const animLow      = useCountUp(computed(() => summary.value.severity_counts?.low || 0), 1200)
 const sarif = computed(() => props.result.sarif)
 const findings = computed(() => summary.value.findings || [])
 
@@ -369,6 +361,12 @@ function downloadSarif() {
 .mval.orange { color: #f97316; text-shadow: 0 0 20px rgba(249,115,22,0.3); }
 .mval.yellow { color: #eab308; text-shadow: 0 0 20px rgba(234,179,8,0.3); }
 .mval.blue   { color: #3b82f6; text-shadow: 0 0 20px rgba(59,130,246,0.3); }
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.6) translateY(8px); }
+  70%  { transform: scale(1.08) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.mval.pop { animation: pop-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
 .mlbl {
   font-size: 0.68rem;
