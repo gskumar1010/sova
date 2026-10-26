@@ -1,5 +1,12 @@
 <template>
   <div class="dashboard">
+    <!-- Session trace log — collapsed by default, above results -->
+    <details class="trace-section" @toggle="loadTrace">
+      <summary class="trace-toggle">🔍 Session Trace Log</summary>
+      <pre class="trace-log" v-if="traceLines.length">{{ traceLines.join('\n') }}</pre>
+      <div v-else class="trace-empty">No trace data yet.</div>
+    </details>
+
     <!-- On-prem callout -->
     <div class="onprem-banner">
       🔒 <strong>Data stayed on-prem</strong>
@@ -102,13 +109,6 @@
       <button class="btn-primary" @click="downloadSarif">📥 Download SARIF Report</button>
       <button class="btn-secondary" @click="$emit('new-scan')">New Scan</button>
     </div>
-
-    <!-- Session trace log -->
-    <details class="trace-section" @toggle="loadTrace">
-      <summary class="trace-toggle">🔍 Session Trace Log</summary>
-      <pre class="trace-log" v-if="traceLines.length">{{ traceLines.join('\n') }}</pre>
-      <div v-else class="trace-empty">No trace data yet.</div>
-    </details>
   </div>
 </template>
 
