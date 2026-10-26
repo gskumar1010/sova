@@ -188,7 +188,8 @@ def _summarise_sarif(sarif: dict) -> dict:
                 severity = "critical"
             elif any(s in rule_lower for s in ["secret", "credential", "hardcoded", "password", "apikey", "api-key", "aws", "token", "private-key"]):
                 severity = "critical"
-            elif any(s in rule_lower for s in ["subprocess", "shell-true", "shell_true", "b602", "b605", "b606"]):
+            elif rule_id in ("B602", "B603", "B604", "B605", "B606", "B607") or \
+                    any(s in rule_lower for s in ["subprocess", "shell-true", "shell_true", "b602", "b605", "b606"]):
                 severity = "high"
             elif any(s in msg_lower for s in ["shell=true", "shell injection", "command injection", "arbitrary code"]):
                 severity = "high"
