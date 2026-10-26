@@ -629,12 +629,15 @@ def api_scan_report(scan_id: str):
   Scanned inside a Kata VM with OpenShell egress policy enforcement. Data never left the cluster.
   Red Hat OpenShift AI · DEMOJam 2027
 </div>
+<script>
+  window.addEventListener('load', function() {{
+    setTimeout(function() {{ window.print(); }}, 400);
+  }});
+</script>
 </body>
 </html>"""
 
-    return HTMLResponse(content=html, headers={
-        "Content-Disposition": f'attachment; filename="sova-report-{scan_id[:8]}.html"'
-    })
+    return HTMLResponse(content=html)
 
 
 # In-memory remediation store: scan_id -> {status, fixes: [...]}

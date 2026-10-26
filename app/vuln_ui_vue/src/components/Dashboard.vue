@@ -306,17 +306,10 @@ const filesBarData = computed(() => {
   }
 })
 
-async function downloadReport() {
+function downloadReport() {
   const scanId = props.result?.scan_id
   if (!scanId) return
-  const url = `/api/scan/report/${scanId}`
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `sova-report-${scanId.slice(0,8)}.html`
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  window.open(`/api/scan/report/${scanId}`, '_blank')
 }
 
 function downloadSarif() {
