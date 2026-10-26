@@ -32,8 +32,8 @@
         :logLines="logLines"
       />
 
-      <!-- Scan history strip — shown when 2+ scans exist -->
-      <div v-if="scanHistory.length > 1 && phase === 'done'" class="history-strip">
+      <!-- Scan history strip — shown whenever there's history and results are showing -->
+      <div v-if="scanHistory.length > 0 && phase === 'done'" class="history-strip">
         <div class="history-label">Recent scans</div>
         <div class="history-cards">
           <div
@@ -43,7 +43,10 @@
             :class="{ active: entry.result.scan_id === activeHistoryId }"
             @click="loadHistory(entry)"
           >
-            <div class="hc-repo">{{ entry.result.git_url.split('/').slice(-2).join('/').replace('.git','') }}</div>
+            <div class="hc-repo">
+              {{ entry.result.git_url.split('/').slice(-2).join('/').replace('.git','') }}
+              <span v-if="entry.persisted" class="hc-badge">saved</span>
+            </div>
             <div class="hc-meta">
               <span class="hc-risk" :style="{ color: riskColor(entry.result.summary?.risk) }">
                 {{ entry.result.summary?.risk ?? '—' }}
@@ -72,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import Banner from './components/Banner.vue'
 import ChatDrawer from './components/ChatDrawer.vue'
 import ScanInput from './components/ScanInput.vue'
@@ -88,8 +91,32 @@ const currentGitUrl = ref('')
 const errorMsg = ref('')
 const progressEvents = ref([])
 const logLines = ref([])
-const scanHistory = ref([])   // [{result, logLines, ts}]
+const scanHistory = ref([])   // [{result, logLines, ts, persisted}]
 const activeHistoryId = ref(null)
+
+const LS_KEY = 'sova_history'
+
+function saveHistory(entries) {
+  try {
+    // Strip sarif (large) before persisting
+    const slim = entries.map(e => ({
+      ...e,
+      result: { ...e.result, sarif: undefined },
+      logLines: e.logLines.slice(-30),
+      persisted: true
+    }))
+    localStorage.setItem(LS_KEY, JSON.stringify(slim.slice(0, 5)))
+  } catch { /* quota exceeded — skip */ }
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (raw) scanHistory.value = JSON.parse(raw)
+  } catch { /* corrupted — ignore */ }
+}
+
+onMounted(loadHistory)
 
 async function handleScanStart(gitUrl) {
   currentGitUrl.value = gitUrl
@@ -136,11 +163,13 @@ async function fetchResult(scan_id) {
     scanResult.value = fullResult
     activeHistoryId.value = scan_id
     phase.value = 'done'
-    // Keep last 8 scans; newest first
-    scanHistory.value = [
-      { result: fullResult, logLines: [...logLines.value], ts: new Date().toLocaleTimeString() },
+    // Keep last 8 in-session, 5 persisted; newest first
+    const newHistory = [
+      { result: fullResult, logLines: [...logLines.value], ts: new Date().toLocaleTimeString(), persisted: false },
       ...scanHistory.value.filter(h => h.result.scan_id !== scan_id)
     ].slice(0, 8)
+    scanHistory.value = newHistory
+    saveHistory(newHistory)
   } catch (err) {
     phase.value = 'error'
     errorMsg.value = err.message || 'Failed to retrieve results'
@@ -235,6 +264,12 @@ function now() {
 .hc-risk { font-size: 1rem; font-weight: 800; line-height: 1; }
 .hc-count { font-size: 0.68rem; color: #475569; }
 .hc-ts { font-size: 0.65rem; color: #334155; margin-left: auto; }
+.hc-badge {
+  font-size: 0.55rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; background: rgba(0,180,255,0.1);
+  border: 1px solid rgba(0,180,255,0.2); border-radius: 3px;
+  padding: 1px 4px; color: #00b4ff; margin-left: 0.3rem; vertical-align: middle;
+}
 
 .intro-card {
   background: linear-gradient(135deg, rgba(0,180,255,0.04) 0%, rgba(8,12,24,0) 60%);
