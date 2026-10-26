@@ -30,27 +30,27 @@
     <div class="metrics-row">
       <div class="mcard risk" :style="{ '--risk-color': riskColor }">
         <div class="risk-badge">{{ riskLabel }} RISK</div>
-        <div class="mval" :style="{ color: riskColor }">{{ summary.risk }}</div>
+        <div class="mval" :style="{ color: riskColor }">{{ animRisk }}</div>
         <div class="mlbl">Risk Score</div>
       </div>
       <div class="mcard total">
-        <div class="mval cyan">{{ summary.total }}</div>
+        <div class="mval cyan">{{ animTotal }}</div>
         <div class="mlbl">Total</div>
       </div>
       <div class="mcard crit">
-        <div class="mval red">{{ summary.severity_counts.critical }}</div>
+        <div class="mval red">{{ animCritical }}</div>
         <div class="mlbl">Critical</div>
       </div>
       <div class="mcard high">
-        <div class="mval orange">{{ summary.severity_counts.high }}</div>
+        <div class="mval orange">{{ animHigh }}</div>
         <div class="mlbl">High</div>
       </div>
       <div class="mcard med">
-        <div class="mval yellow">{{ summary.severity_counts.medium }}</div>
+        <div class="mval yellow">{{ animMedium }}</div>
         <div class="mlbl">Medium</div>
       </div>
       <div class="mcard low">
-        <div class="mval blue">{{ summary.severity_counts.low }}</div>
+        <div class="mval blue">{{ animLow }}</div>
         <div class="mlbl">Low</div>
       </div>
     </div>
@@ -120,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Remediation from './Remediation.vue'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
@@ -148,6 +148,15 @@ async function loadTrace() {
 
 const ruleFilter = ref('')
 
+// Animated display values — set to 0, filled in onMounted
+const animRisk     = ref(0)
+const animTotal    = ref(0)
+const animCritical = ref(0)
+const animHigh     = ref(0)
+const animMedium   = ref(0)
+const animLow      = ref(0)
+const timers       = []
+
 const summary = computed(() => props.result.summary || {
   total: 0, risk: 0,
   severity_counts: { critical: 0, high: 0, medium: 0, low: 0 },
@@ -155,6 +164,27 @@ const summary = computed(() => props.result.summary || {
 })
 const sarif = computed(() => props.result.sarif)
 const findings = computed(() => summary.value.findings || [])
+
+function countUp(target, to, duration) {
+  const start = Date.now()
+  const t = setInterval(() => {
+    const p = Math.min((Date.now() - start) / duration, 1)
+    target.value = Math.round(to * (1 - Math.pow(2, -10 * p)))
+    if (p >= 1) { target.value = to; clearInterval(t) }
+  }, 16)
+  timers.push(t)
+}
+
+onMounted(() => {
+  const sc = summary.value.severity_counts || {}
+  countUp(animRisk,     summary.value.risk    || 0, 1400)
+  countUp(animTotal,    summary.value.total   || 0, 1200)
+  countUp(animCritical, sc.critical           || 0,  900)
+  countUp(animHigh,     sc.high               || 0, 1000)
+  countUp(animMedium,   sc.medium             || 0, 1100)
+  countUp(animLow,      sc.low                || 0, 1200)
+})
+onUnmounted(() => timers.forEach(clearInterval))
 
 const scanDuration = computed(() => {
   if (props.result.duration) return props.result.duration
