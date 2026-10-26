@@ -30,27 +30,27 @@
     <div class="metrics-row">
       <div class="mcard risk" :style="{ '--risk-color': riskColor }">
         <div class="risk-badge">{{ riskLabel }} RISK</div>
-        <div class="mval" :style="{ color: riskColor }">{{ animRisk }}</div>
+        <div class="mval" :style="{ color: riskColor }">{{ summary.risk }}</div>
         <div class="mlbl">Risk Score</div>
       </div>
       <div class="mcard total">
-        <div class="mval cyan">{{ animTotal }}</div>
+        <div class="mval cyan">{{ summary.total }}</div>
         <div class="mlbl">Total</div>
       </div>
       <div class="mcard crit">
-        <div class="mval red">{{ animCritical }}</div>
+        <div class="mval red">{{ summary.severity_counts.critical }}</div>
         <div class="mlbl">Critical</div>
       </div>
       <div class="mcard high">
-        <div class="mval orange">{{ animHigh }}</div>
+        <div class="mval orange">{{ summary.severity_counts.high }}</div>
         <div class="mlbl">High</div>
       </div>
       <div class="mcard med">
-        <div class="mval yellow">{{ animMedium }}</div>
+        <div class="mval yellow">{{ summary.severity_counts.medium }}</div>
         <div class="mlbl">Medium</div>
       </div>
       <div class="mcard low">
-        <div class="mval blue">{{ animLow }}</div>
+        <div class="mval blue">{{ summary.severity_counts.low }}</div>
         <div class="mlbl">Low</div>
       </div>
     </div>
@@ -122,7 +122,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import Remediation from './Remediation.vue'
-import { useCountUp } from '../composables/useCountUp.js'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
@@ -148,14 +147,6 @@ async function loadTrace() {
 }
 
 const ruleFilter = ref('')
-
-// Count-up animations for all metric cards
-const animRisk     = useCountUp(computed(() => summary.value.risk || 0), 1400)
-const animTotal    = useCountUp(computed(() => summary.value.total || 0), 1200)
-const animCritical = useCountUp(computed(() => summary.value.severity_counts?.critical || 0), 900)
-const animHigh     = useCountUp(computed(() => summary.value.severity_counts?.high || 0), 1000)
-const animMedium   = useCountUp(computed(() => summary.value.severity_counts?.medium || 0), 1100)
-const animLow      = useCountUp(computed(() => summary.value.severity_counts?.low || 0), 1200)
 
 const summary = computed(() => props.result.summary || {
   total: 0, risk: 0,
@@ -222,7 +213,7 @@ const donutOpts = {
 const barOpts = {
   responsive: true, maintainAspectRatio: true,
   indexAxis: 'y',
-  plugins: { legend: { display: false }, tooltip: {} },
+  plugins: { legend: { display: false } },
   scales: {
     x: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.03)' } },
     y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } },
@@ -248,11 +239,11 @@ const filesBarData = computed(() => {
   for (const f of findings.value) {
     fileCounts[f.file] = (fileCounts[f.file] || 0) + 1
   }
-  const sorted = Object.entries(fileCounts).sort((a,b) => b[1]-a[1]).slice(0,8)
+  const sorted = Object.entries(fileCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
   return {
     labels: sorted.map(([f]) => f.split('/').slice(-2).join('/')),
     datasets: [{
-      data: sorted.map(([,c]) => c),
+      data: sorted.map(([, c]) => c),
       backgroundColor: 'rgba(0,180,255,0.4)',
       borderColor: 'rgba(0,180,255,0.7)',
       borderWidth: 1,
@@ -382,7 +373,6 @@ function downloadSarif() {
   grid-template-columns: 1fr 1.5fr 1.5fr;
   gap: 1rem;
 }
-
 .chart-card {
   background: rgba(8,12,24,0.7);
   border: 1px solid rgba(0,180,255,0.1);
@@ -390,13 +380,10 @@ function downloadSarif() {
   padding: 1rem;
 }
 .chart-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #475569;
-  margin-bottom: 0.75rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #475569; margin-bottom: 0.75rem;
 }
+
 .donut-wrap { max-width: 200px; margin: 0 auto; }
 
 .findings-section { display: flex; flex-direction: column; gap: 0.75rem; }
