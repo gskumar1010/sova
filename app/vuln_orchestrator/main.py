@@ -275,6 +275,39 @@ def _summarise_sarif(sarif: dict) -> dict:
                 region = pl.get("region", {})
                 line = region.get("startLine", 0)
                 snippet = region.get("snippet", {}).get("text", "")
+            # Extract CWE if present (bandit puts it in properties, semgrep in tags)
+            cwe_id = None
+            cwe_url = None
+            props = result.get("properties", {})
+            if "issue_cwe" in props:
+                cwe_id = props["issue_cwe"].get("id")
+                cwe_url = props["issue_cwe"].get("link") or (f"https://cwe.mitre.org/data/definitions/{cwe_id}.html" if cwe_id else None)
+            elif not cwe_id and rule_id in rules_by_id:
+                # Try semgrep rule tags
+                for tag in rules_by_id[rule_id].get("properties", {}).get("tags", []):
+                    if tag.startswith("CWE-"):
+                        cwe_id = tag.split("-")[1]
+                        cwe_url = f"https://cwe.mitre.org/data/definitions/{cwe_id}.html"
+                        break
+            # Fallback: bandit rule_id → CWE map
+            if not cwe_id:
+                _BANDIT_CWE = {
+                    "B102":78,"B103":732,"B105":259,"B106":259,"B107":259,
+                    "B108":377,"B201":605,"B301":502,"B302":502,"B303":327,
+                    "B304":327,"B305":327,"B307":78,"B308":352,"B310":601,
+                    "B311":338,"B312":601,"B313":611,"B314":611,"B315":611,
+                    "B320":611,"B321":321,"B322":676,"B323":295,"B324":327,
+                    "B325":338,"B401":326,"B404":78,"B501":295,"B502":326,
+                    "B503":326,"B504":326,"B505":326,"B601":78,"B602":78,
+                    "B603":78,"B604":78,"B605":78,"B606":78,"B607":78,
+                    "B608":89,"B609":78,"B610":89,"B611":89,"B701":94,
+                    "B702":94,"B703":94,
+                }
+                cwe_num = _BANDIT_CWE.get(rule_id)
+                if cwe_num:
+                    cwe_id = str(cwe_num)
+                    cwe_url = f"https://cwe.mitre.org/data/definitions/{cwe_num}.html"
+
             findings.append({
                 "tool": tool_name,
                 "rule_id": rule_id,
@@ -283,6 +316,8 @@ def _summarise_sarif(sarif: dict) -> dict:
                 "file": file_path,
                 "line": line,
                 "snippet": snippet,
+                "cwe_id": cwe_id,
+                "cwe_url": cwe_url,
             })
 
     top_rules = sorted(rule_freq.items(), key=lambda x: x[1], reverse=True)[:5]

@@ -93,6 +93,9 @@
           <summary class="finding-summary">
             <span class="sev-badge" :class="f.severity">{{ f.severity.toUpperCase() }}</span>
             <code class="rule-id">{{ f.rule_id }}</code>
+            <a v-if="f.cwe_id" :href="f.cwe_url" target="_blank" class="cwe-badge" @click.stop>
+              CWE-{{ f.cwe_id }} ↗
+            </a>
             <span class="file-loc">{{ f.file }}:{{ f.line }}</span>
           </summary>
           <div class="finding-body">
@@ -470,6 +473,20 @@ function downloadSarif() {
   transition: all 0.2s;
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+.cwe-badge {
+  display: inline-flex; align-items: center;
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.68rem; font-weight: 600;
+  color: #3b82f6;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.cwe-badge:hover { background: rgba(59,130,246,0.2); }
 
 .trace-section {
   background: rgba(8,12,24,0.8);
