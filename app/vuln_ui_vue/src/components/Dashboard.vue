@@ -30,27 +30,27 @@
     <div class="metrics-row">
       <div class="mcard risk" :style="{ '--risk-color': riskColor }">
         <div class="risk-badge">{{ riskLabel }} RISK</div>
-        <div class="mval" :style="{ color: riskColor }">{{ summary.risk }}</div>
+        <div class="mval" :style="{ color: riskColor }">{{ animRisk }}</div>
         <div class="mlbl">Risk Score</div>
       </div>
       <div class="mcard total">
-        <div class="mval cyan">{{ summary.total }}</div>
+        <div class="mval cyan">{{ animTotal }}</div>
         <div class="mlbl">Total</div>
       </div>
       <div class="mcard crit">
-        <div class="mval red">{{ summary.severity_counts.critical }}</div>
+        <div class="mval red">{{ animCritical }}</div>
         <div class="mlbl">Critical</div>
       </div>
       <div class="mcard high">
-        <div class="mval orange">{{ summary.severity_counts.high }}</div>
+        <div class="mval orange">{{ animHigh }}</div>
         <div class="mlbl">High</div>
       </div>
       <div class="mcard med">
-        <div class="mval yellow">{{ summary.severity_counts.medium }}</div>
+        <div class="mval yellow">{{ animMedium }}</div>
         <div class="mlbl">Medium</div>
       </div>
       <div class="mcard low">
-        <div class="mval blue">{{ summary.severity_counts.low }}</div>
+        <div class="mval blue">{{ animLow }}</div>
         <div class="mlbl">Low</div>
       </div>
     </div>
@@ -122,6 +122,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import Remediation from './Remediation.vue'
+import { useCountUp } from '../composables/useCountUp.js'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
@@ -147,6 +148,14 @@ async function loadTrace() {
 }
 
 const ruleFilter = ref('')
+
+// Count-up animations for all metric cards
+const animRisk     = useCountUp(computed(() => summary.value.risk || 0), 1400)
+const animTotal    = useCountUp(computed(() => summary.value.total || 0), 1200)
+const animCritical = useCountUp(computed(() => summary.value.severity_counts?.critical || 0), 900)
+const animHigh     = useCountUp(computed(() => summary.value.severity_counts?.high || 0), 1000)
+const animMedium   = useCountUp(computed(() => summary.value.severity_counts?.medium || 0), 1100)
+const animLow      = useCountUp(computed(() => summary.value.severity_counts?.low || 0), 1200)
 
 const summary = computed(() => props.result.summary || {
   total: 0, risk: 0,
