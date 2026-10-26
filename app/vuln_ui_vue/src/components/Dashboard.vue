@@ -55,21 +55,46 @@
       </div>
     </div>
 
-    <!-- Charts row -->
+    <!-- Charts row — pure CSS, no external library -->
     <div v-if="summary.total > 0" class="charts-row">
+      <!-- Severity distribution -->
       <div class="chart-card">
         <div class="chart-title">Severity Distribution</div>
-        <div class="donut-wrap">
-          <Doughnut :data="donutData" :options="donutOpts" />
+        <div class="sev-bars">
+          <div v-for="s in sevRows" :key="s.label" class="sev-row">
+            <span class="sev-lbl">{{ s.label }}</span>
+            <div class="sev-track">
+              <div class="sev-fill" :style="{ width: s.pct + '%', background: s.color }"></div>
+            </div>
+            <span class="sev-count" :style="{ color: s.color }">{{ s.count }}</span>
+          </div>
         </div>
       </div>
+      <!-- Top rules -->
       <div class="chart-card">
         <div class="chart-title">Top 5 Rules</div>
-        <Bar :data="rulesBarData" :options="barOpts" />
+        <div class="horiz-bars">
+          <div v-for="r in topRules" :key="r.rule_id" class="hbar-row">
+            <div class="hbar-label">{{ r.rule_id.split('.').pop() }}</div>
+            <div class="hbar-track">
+              <div class="hbar-fill" :style="{ width: (r.count / maxRuleCount * 100) + '%' }"></div>
+            </div>
+            <span class="hbar-count">{{ r.count }}</span>
+          </div>
+        </div>
       </div>
+      <!-- Hotspot files -->
       <div class="chart-card">
         <div class="chart-title">Hotspot Files</div>
-        <Bar :data="filesBarData" :options="barOpts" />
+        <div class="horiz-bars">
+          <div v-for="f in hotspotFiles" :key="f.file" class="hbar-row">
+            <div class="hbar-label">{{ f.file.split('/').slice(-2).join('/') }}</div>
+            <div class="hbar-track">
+              <div class="hbar-fill" :style="{ width: (f.count / maxFileCount * 100) + '%' }"></div>
+            </div>
+            <span class="hbar-count">{{ f.count }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -122,13 +147,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import Remediation from './Remediation.vue'
-import { Doughnut, Bar } from 'vue-chartjs'
-import {
-  Chart as ChartJS, ArcElement, Tooltip, Legend,
-  CategoryScale, LinearScale, BarElement, Title
-} from 'chart.js'
-
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
 const props = defineProps({
   result: { type: Object, required: true }
@@ -185,72 +203,27 @@ const filteredFindings = computed(() =>
     : findings.value
 )
 
-// Charts
-const SEV_COLORS = ['#ef4444', '#f97316', '#eab308', '#3b82f6']
-
-const donutData = computed(() => {
+// CSS-only charts — no external library
+const sevRows = computed(() => {
   const sc = summary.value.severity_counts
-  return {
-    labels: ['Critical', 'High', 'Medium', 'Low'],
-    datasets: [{
-      data: [sc.critical, sc.high, sc.medium, sc.low],
-      backgroundColor: SEV_COLORS,
-      borderColor: '#050810',
-      borderWidth: 3,
-    }]
-  }
+  const max = Math.max(sc.critical, sc.high, sc.medium, sc.low, 1)
+  return [
+    { label: 'Critical', count: sc.critical, color: '#ef4444', pct: sc.critical / max * 100 },
+    { label: 'High',     count: sc.high,     color: '#f97316', pct: sc.high     / max * 100 },
+    { label: 'Medium',   count: sc.medium,   color: '#eab308', pct: sc.medium   / max * 100 },
+    { label: 'Low',      count: sc.low,      color: '#3b82f6', pct: sc.low      / max * 100 },
+  ]
 })
 
-const donutOpts = {
-  responsive: true, maintainAspectRatio: true,
-  cutout: '65%',
-  plugins: {
-    legend: { labels: { color: '#8b949e', font: { size: 11 } } },
-    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } }
-  }
-}
+const topRules = computed(() => (summary.value.top_rules || []).slice(0, 5))
+const maxRuleCount = computed(() => Math.max(...topRules.value.map(r => r.count), 1))
 
-const barOpts = {
-  responsive: true, maintainAspectRatio: true,
-  indexAxis: 'y',
-  plugins: { legend: { display: false }, tooltip: {} },
-  scales: {
-    x: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.03)' } },
-    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } },
-  }
-}
-
-const rulesBarData = computed(() => {
-  const rules = (summary.value.top_rules || []).slice(0, 5)
-  return {
-    labels: rules.map(r => r.rule_id.split('.').pop()),
-    datasets: [{
-      data: rules.map(r => r.count),
-      backgroundColor: 'rgba(0,180,255,0.5)',
-      borderColor: 'rgba(0,180,255,0.8)',
-      borderWidth: 1,
-      borderRadius: 4,
-    }]
-  }
+const hotspotFiles = computed(() => {
+  const counts = {}
+  for (const f of findings.value) counts[f.file] = (counts[f.file] || 0) + 1
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([file, count]) => ({ file, count }))
 })
-
-const filesBarData = computed(() => {
-  const fileCounts = {}
-  for (const f of findings.value) {
-    fileCounts[f.file] = (fileCounts[f.file] || 0) + 1
-  }
-  const sorted = Object.entries(fileCounts).sort((a,b) => b[1]-a[1]).slice(0,8)
-  return {
-    labels: sorted.map(([f]) => f.split('/').slice(-2).join('/')),
-    datasets: [{
-      data: sorted.map(([,c]) => c),
-      backgroundColor: 'rgba(0,180,255,0.4)',
-      borderColor: 'rgba(0,180,255,0.7)',
-      borderWidth: 1,
-      borderRadius: 4,
-    }]
-  }
-})
+const maxFileCount = computed(() => Math.max(...hotspotFiles.value.map(f => f.count), 1))
 
 async function downloadReport() {
   const scanId = props.result?.scan_id
@@ -373,7 +346,6 @@ function downloadSarif() {
   grid-template-columns: 1fr 1.5fr 1.5fr;
   gap: 1rem;
 }
-
 .chart-card {
   background: rgba(8,12,24,0.7);
   border: 1px solid rgba(0,180,255,0.1);
@@ -381,14 +353,25 @@ function downloadSarif() {
   padding: 1rem;
 }
 .chart-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #475569;
-  margin-bottom: 0.75rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #475569; margin-bottom: 0.75rem;
 }
-.donut-wrap { max-width: 200px; margin: 0 auto; }
+
+/* Severity bars */
+.sev-bars { display: flex; flex-direction: column; gap: 0.5rem; }
+.sev-row { display: flex; align-items: center; gap: 0.5rem; }
+.sev-lbl { font-size: 0.7rem; color: #64748b; width: 52px; flex-shrink: 0; }
+.sev-track { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.sev-fill { height: 100%; border-radius: 3px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+.sev-count { font-size: 0.72rem; font-weight: 700; width: 24px; text-align: right; flex-shrink: 0; }
+
+/* Horizontal bars */
+.horiz-bars { display: flex; flex-direction: column; gap: 0.45rem; }
+.hbar-row { display: flex; align-items: center; gap: 0.5rem; }
+.hbar-label { font-size: 0.68rem; color: #64748b; width: 110px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.hbar-fill { height: 100%; background: rgba(0,180,255,0.55); border-radius: 3px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+.hbar-count { font-size: 0.7rem; color: #475569; width: 20px; text-align: right; flex-shrink: 0; }
 
 .findings-section { display: flex; flex-direction: column; gap: 0.75rem; }
 
