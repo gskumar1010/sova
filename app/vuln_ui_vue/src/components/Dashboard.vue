@@ -102,6 +102,13 @@
       <button class="btn-primary" @click="downloadSarif">📥 Download SARIF Report</button>
       <button class="btn-secondary" @click="$emit('new-scan')">New Scan</button>
     </div>
+
+    <!-- Session trace log -->
+    <details class="trace-section" @toggle="loadTrace">
+      <summary class="trace-toggle">🔍 Session Trace Log</summary>
+      <pre class="trace-log" v-if="traceLines.length">{{ traceLines.join('\n') }}</pre>
+      <div v-else class="trace-empty">No trace data yet.</div>
+    </details>
   </div>
 </template>
 
@@ -119,6 +126,17 @@ const props = defineProps({
   result: { type: Object, required: true }
 })
 defineEmits(['new-scan'])
+
+const traceLines = ref([])
+async function loadTrace() {
+  const scanId = props.result?.scan_id
+  if (!scanId || traceLines.value.length) return
+  try {
+    const r = await fetch(`/api/scan/trace/${scanId}`)
+    const d = await r.json()
+    traceLines.value = d.lines || []
+  } catch { /* silent */ }
+}
 
 const ruleFilter = ref('')
 
@@ -452,4 +470,41 @@ function downloadSarif() {
   transition: all 0.2s;
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+.trace-section {
+  background: rgba(8,12,24,0.8);
+  border: 1px solid rgba(0,180,255,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.trace-toggle {
+  padding: 0.65rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+.trace-toggle:hover { color: #64748b; }
+.trace-log {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: #475569;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  max-height: 300px;
+  overflow-y: auto;
+}
+.trace-empty {
+  padding: 0.75rem 1rem;
+  font-size: 0.78rem;
+  color: #334155;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
 </style>
