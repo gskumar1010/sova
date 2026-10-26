@@ -20,6 +20,15 @@
       <span class="blocked">✗ All other egress blocked</span>
     </div>
 
+    <!-- Repo identity -->
+    <div v-if="repoInfo" class="repo-header">
+      <img :src="repoInfo.avatarUrl" :alt="repoInfo.org" class="repo-avatar" @error="$event.target.style.display='none'" />
+      <div class="repo-meta">
+        <div class="repo-org">{{ repoInfo.org }}</div>
+        <div class="repo-name">{{ repoInfo.org }} / {{ repoInfo.repo }}</div>
+      </div>
+    </div>
+
     <!-- Section header -->
     <div class="section-header">
       Scan Results
@@ -30,27 +39,27 @@
     <div class="metrics-row">
       <div class="mcard risk" :style="{ '--risk-color': riskColor }">
         <div class="risk-badge">{{ riskLabel }} RISK</div>
-        <div class="mval" :style="{ color: riskColor }">{{ summary.risk }}</div>
+        <div class="mval" :style="{ color: riskColor }">{{ animRisk }}</div>
         <div class="mlbl">Risk Score</div>
       </div>
       <div class="mcard total">
-        <div class="mval cyan">{{ summary.total }}</div>
+        <div class="mval cyan">{{ animTotal }}</div>
         <div class="mlbl">Total</div>
       </div>
       <div class="mcard crit">
-        <div class="mval red">{{ summary.severity_counts.critical }}</div>
+        <div class="mval red">{{ animCritical }}</div>
         <div class="mlbl">Critical</div>
       </div>
       <div class="mcard high">
-        <div class="mval orange">{{ summary.severity_counts.high }}</div>
+        <div class="mval orange">{{ animHigh }}</div>
         <div class="mlbl">High</div>
       </div>
       <div class="mcard med">
-        <div class="mval yellow">{{ summary.severity_counts.medium }}</div>
+        <div class="mval yellow">{{ animMedium }}</div>
         <div class="mlbl">Medium</div>
       </div>
       <div class="mcard low">
-        <div class="mval blue">{{ summary.severity_counts.low }}</div>
+        <div class="mval blue">{{ animLow }}</div>
         <div class="mlbl">Low</div>
       </div>
     </div>
@@ -120,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Remediation from './Remediation.vue'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
@@ -148,6 +157,15 @@ async function loadTrace() {
 
 const ruleFilter = ref('')
 
+// Animated display values — set to 0, filled in onMounted
+const animRisk     = ref(0)
+const animTotal    = ref(0)
+const animCritical = ref(0)
+const animHigh     = ref(0)
+const animMedium   = ref(0)
+const animLow      = ref(0)
+const timers       = []
+
 const summary = computed(() => props.result.summary || {
   total: 0, risk: 0,
   severity_counts: { critical: 0, high: 0, medium: 0, low: 0 },
@@ -155,6 +173,27 @@ const summary = computed(() => props.result.summary || {
 })
 const sarif = computed(() => props.result.sarif)
 const findings = computed(() => summary.value.findings || [])
+
+function countUp(target, to, duration) {
+  const start = Date.now()
+  const t = setInterval(() => {
+    const p = Math.min((Date.now() - start) / duration, 1)
+    target.value = Math.round(to * (1 - Math.pow(2, -10 * p)))
+    if (p >= 1) { target.value = to; clearInterval(t) }
+  }, 16)
+  timers.push(t)
+}
+
+onMounted(() => {
+  const sc = summary.value.severity_counts || {}
+  countUp(animRisk,     summary.value.risk    || 0, 1400)
+  countUp(animTotal,    summary.value.total   || 0, 1200)
+  countUp(animCritical, sc.critical           || 0,  900)
+  countUp(animHigh,     sc.high               || 0, 1000)
+  countUp(animMedium,   sc.medium             || 0, 1100)
+  countUp(animLow,      sc.low                || 0, 1200)
+})
+onUnmounted(() => timers.forEach(clearInterval))
 
 const scanDuration = computed(() => {
   if (props.result.duration) return props.result.duration
@@ -174,6 +213,13 @@ const riskLabel = computed(() => {
   if (r >= 45) return 'HIGH'
   if (r >= 20) return 'MEDIUM'
   return 'LOW'
+})
+
+const repoInfo = computed(() => {
+  const url = props.result.git_url || ''
+  const m = url.match(/github\.com\/([^/]+)\/([^/.]+?)(?:\.git)?\/?$/)
+  if (!m) return null
+  return { org: m[1], repo: m[2], avatarUrl: `https://github.com/${m[1]}.png?size=80` }
 })
 
 const topRuleIds = computed(() =>
@@ -297,6 +343,26 @@ function downloadSarif() {
 .sep { color: #334155; }
 .allowed { color: #22c55e; }
 .blocked { color: #ef4444; }
+
+.repo-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(8,12,24,0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 0.85rem 1.25rem;
+}
+.repo-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.repo-meta { display: flex; flex-direction: column; gap: 0.1rem; }
+.repo-org  { font-size: 0.68rem; color: #475569; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.repo-name { font-size: 0.95rem; color: #e2e8f0; font-weight: 600; font-family: var(--mono); }
 
 .section-header {
   font-size: 0.72rem;

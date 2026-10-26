@@ -44,11 +44,13 @@ const chatOpen = ref(false)
 const phase = ref('idle')   // idle | scanning | done | error
 const scanId = ref(null)
 const scanResult = ref(null)
+const currentGitUrl = ref('')
 const errorMsg = ref('')
 const progressEvents = ref([])
 const logLines = ref([])
 
 async function handleScanStart(gitUrl) {
+  currentGitUrl.value = gitUrl
   phase.value = 'scanning'
   progressEvents.value = []
   logLines.value = []
@@ -87,7 +89,7 @@ async function handleScanStart(gitUrl) {
 async function fetchResult(scan_id) {
   try {
     const result = await getResult(scan_id)
-    scanResult.value = { ...result, scan_id }
+    scanResult.value = { ...result, scan_id, git_url: currentGitUrl.value }
     phase.value = 'done'
     logLines.value.push({ ts: now(), text: `✓ Scan complete — ${result.summary?.total || 0} findings` })
   } catch (err) {
