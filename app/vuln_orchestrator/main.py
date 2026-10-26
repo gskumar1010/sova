@@ -24,6 +24,8 @@ scan_manager = ScanManager()
 _progress: dict = {}
 # In-memory scan state for Vue frontend
 _scan_state: dict = {}  # scan_id -> {status, sarif, summary, error}
+# Per-scan trace log: scan_id -> list of timestamped strings
+_trace: dict = {}
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -157,13 +159,30 @@ def run_safety_scan(request: SafetyRequest):
 # ── NEW: Vue Frontend API ─────────────────────────────────────────────────────
 
 def _emit(scan_id: str, step: str, status: str, detail: str = None):
-    """Add a progress event to the in-memory store."""
+    """Add a progress event and trace log entry."""
     if scan_id not in _progress:
         _progress[scan_id] = []
     _progress[scan_id].append({
         "step": step, "status": status,
         "detail": detail, "ts": datetime.utcnow().isoformat(),
     })
+    # Also write to trace log
+    if scan_id not in _trace:
+        _trace[scan_id] = []
+    ts = datetime.utcnow().strftime("%H:%M:%S")
+    icon = "✓" if status == "completed" else "✗" if status == "failed" else "→"
+    msg = f"[{ts}] {icon} {step}: {status}"
+    if detail:
+        msg += f" — {detail}"
+    _trace[scan_id].append(msg)
+
+
+def _trace_append(scan_id: str, msg: str):
+    """Append a raw message to the trace log."""
+    if scan_id not in _trace:
+        _trace[scan_id] = []
+    ts = datetime.utcnow().strftime("%H:%M:%S")
+    _trace[scan_id].append(f"[{ts}] {msg}")
 
 
 def _summarise_sarif(sarif: dict) -> dict:
@@ -233,6 +252,7 @@ def _run_full_scan(scan_id: str, git_url: str):
     import tempfile, json
     _scan_state[scan_id] = {"status": "running", "sarif": None, "summary": None}
     scan_manager.create_scan(scan_id, git_url)
+    _trace_append(scan_id, f"Scan started: {git_url}")
 
     tmpdir = tempfile.mkdtemp()
     try:
@@ -454,6 +474,12 @@ def api_chat(request: ChatRequest):
 
 
 # ── Upload endpoint: scan a local tar.gz/zip without needing a Git URL ────────
+
+@app.get("/api/scan/trace/{scan_id}")
+def api_trace(scan_id: str):
+    """Return the full trace log for a scan session."""
+    return {"scan_id": scan_id, "lines": _trace.get(scan_id, [])}
+
 
 @app.post("/api/scan/upload")
 async def api_upload_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
