@@ -20,6 +20,57 @@ from app.vuln_orchestrator.scanners.safety_runner import run_safety
 app = FastAPI(title="SOVA Vulnerability Orchestrator", version="2.0.0")
 scan_manager = ScanManager()
 
+# ── Pre-cache: repos cloned at startup for instant scanning ───────────────────
+CACHE_DIR = "/tmp/sova_repo_cache"
+PREFETCH_REPOS = [
+    ("devastator",     "https://github.com/pkredhat/devastator.git"),
+    ("pygoat",         "https://github.com/adeyosemanputra/pygoat.git"),
+    ("dvwa",           "https://github.com/digininja/DVWA.git"),
+    ("terragoat",      "https://github.com/bridgecrewio/terragoat.git"),
+    ("juice-shop",     "https://github.com/juice-shop/juice-shop.git"),
+    ("webgoat-legacy", "https://github.com/WebGoat/WebGoat-Legacy.git"),
+]
+
+def _prefetch_repos():
+    """Clone repos into cache dir in a background thread at startup."""
+    import threading, git as _git, shutil
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_ASKPASS"] = "echo"
+
+    def _clone(name, url):
+        dest = os.path.join(CACHE_DIR, name)
+        if os.path.isdir(dest):
+            return  # already cached
+        try:
+            _git.Repo.clone_from(url, dest, depth=1, single_branch=True, env=env)
+        except Exception:
+            try: shutil.rmtree(dest, ignore_errors=True)
+            except: pass
+
+    threads = [threading.Thread(target=_clone, args=(n, u), daemon=True)
+               for n, u in PREFETCH_REPOS]
+    for t in threads: t.start()
+
+
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, _prefetch_repos)
+
+
+def _cached_path(git_url: str) -> str | None:
+    """Return cached clone path if this URL is pre-fetched, else None."""
+    for name, url in PREFETCH_REPOS:
+        if url == git_url or url.rstrip(".git") == git_url.rstrip(".git"):
+            dest = os.path.join(CACHE_DIR, name)
+            if os.path.isdir(dest):
+                return dest
+    return None
+
+
 # In-memory progress store: scan_id -> list of step events
 _progress: dict = {}
 # In-memory scan state for Vue frontend
@@ -255,23 +306,33 @@ def _run_full_scan(scan_id: str, git_url: str):
     _trace_append(scan_id, f"Scan started: {git_url}")
 
     tmpdir = tempfile.mkdtemp()
+    _use_cache = False
     try:
-        # ── Clone ──────────────────────────────────────────────────────────
-        _emit(scan_id, "clone", "started", "Cloning repository…")
-        env = os.environ.copy()
-        env["GIT_TERMINAL_PROMPT"] = "0"
-        env["GIT_ASKPASS"] = "echo"
-        repo = git.Repo.clone_from(git_url, tmpdir, depth=1, single_branch=True, env=env)
-        commit = repo.head.commit.hexsha[:8]
-        size_mb = round(sum(
-            f.stat().st_size for f in __import__('pathlib').Path(tmpdir).rglob('*') if f.is_file()
-        ) / 1024 / 1024, 1)
-        _emit(scan_id, "clone", "completed", f"{size_mb} MB · {commit}")
+        # ── Clone (or use pre-fetched cache) ──────────────────────────────
+        cached = _cached_path(git_url)
+        if cached:
+            _emit(scan_id, "clone", "started", "Using pre-cached clone…")
+            scan_dir = cached
+            _emit(scan_id, "clone", "completed", "Loaded from cache ⚡")
+            _trace_append(scan_id, f"Cache hit: {cached}")
+            _use_cache = True
+        else:
+            _emit(scan_id, "clone", "started", "Cloning repository…")
+            env = os.environ.copy()
+            env["GIT_TERMINAL_PROMPT"] = "0"
+            env["GIT_ASKPASS"] = "echo"
+            repo = git.Repo.clone_from(git_url, tmpdir, depth=1, single_branch=True, env=env)
+            commit = repo.head.commit.hexsha[:8]
+            size_mb = round(sum(
+                f.stat().st_size for f in __import__('pathlib').Path(tmpdir).rglob('*') if f.is_file()
+            ) / 1024 / 1024, 1)
+            _emit(scan_id, "clone", "completed", f"{size_mb} MB · {commit}")
+            scan_dir = tmpdir
 
         # ── Semgrep ────────────────────────────────────────────────────────
         _emit(scan_id, "semgrep", "started", "Fetching rulesets from semgrep.dev…")
         sg_out = os.path.join(tmpdir, "semgrep.sarif")
-        sg_result = run_semgrep(tmpdir, sg_out)
+        sg_result = run_semgrep(scan_dir, sg_out)
         sg_sarif = sg_result.get("sarif", {}) if "sarif" in sg_result else {}
         sg_count = len(sg_sarif.get("runs", [{}])[0].get("results", [])) if sg_sarif else 0
         _emit(scan_id, "semgrep", "completed", f"{sg_count} findings")
@@ -279,7 +340,7 @@ def _run_full_scan(scan_id: str, git_url: str):
         # ── Bandit ─────────────────────────────────────────────────────────
         _emit(scan_id, "bandit", "started", "Analyzing Python AST…")
         bn_out = os.path.join(tmpdir, "bandit.json")
-        bn_result = run_bandit(tmpdir, bn_out)
+        bn_result = run_bandit(scan_dir, bn_out)
         bn_count = len(bn_result.get("results", {}).get("results", [])) if "results" in bn_result else 0
         _emit(scan_id, "bandit", "completed", f"{bn_count} findings")
 
