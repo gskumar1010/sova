@@ -87,7 +87,7 @@ async function handleScanStart(gitUrl) {
 async function fetchResult(scan_id) {
   try {
     const result = await getResult(scan_id)
-    scanResult.value = result
+    scanResult.value = { ...result, scan_id }
     phase.value = 'done'
     logLines.value.push({ ts: now(), text: `✓ Scan complete — ${result.summary?.total || 0} findings` })
   } catch (err) {

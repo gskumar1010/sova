@@ -517,6 +517,106 @@ def api_full_result(scan_id: str):
     }
 
 
+@app.get("/api/scan/report/{scan_id}", response_class=None)
+def api_scan_report(scan_id: str):
+    """Generate a styled HTML security report (printable to PDF)."""
+    from fastapi.responses import HTMLResponse
+    from datetime import datetime as _dt
+
+    state = _scan_state.get(scan_id)
+    if not state or state["status"] != "completed":
+        raise HTTPException(status_code=404, detail="Scan not found or not complete")
+
+    s = state.get("summary") or {}
+    findings = s.get("findings", [])
+    git_url = scan_manager.get_scan(scan_id).get("git_url", "unknown") if scan_manager.get_scan(scan_id) else "unknown"
+
+    sev_color = {"critical": "#ef4444", "high": "#f97316", "medium": "#eab308", "low": "#3b82f6"}
+    risk = s.get("risk", 0)
+    risk_color = "#ef4444" if risk >= 75 else "#f97316" if risk >= 45 else "#eab308" if risk >= 20 else "#22c55e"
+    risk_label = "CRITICAL" if risk >= 75 else "HIGH" if risk >= 45 else "MEDIUM" if risk >= 20 else "LOW"
+
+    findings_html = ""
+    for i, f in enumerate(findings[:50], 1):
+        sev = f.get("severity", "low")
+        cwe = f'<a href="{f["cwe_url"]}" style="color:#3b82f6;font-size:0.75rem;">CWE-{f["cwe_id"]} ↗</a>' if f.get("cwe_id") else ""
+        snippet = f"<pre style='background:#0d1117;padding:0.5rem;border-radius:4px;font-size:0.72rem;overflow-x:auto;margin-top:0.5rem;color:#94a3b8'>{f.get('snippet','')[:400]}</pre>" if f.get("snippet") else ""
+        findings_html += f"""
+        <tr>
+          <td style="padding:0.5rem;border-bottom:1px solid #1e293b;">
+            <span style="background:{sev_color.get(sev,'#64748b')}22;color:{sev_color.get(sev,'#64748b')};padding:2px 8px;border-radius:4px;font-size:0.72rem;font-weight:700;">{sev.upper()}</span>
+          </td>
+          <td style="padding:0.5rem;border-bottom:1px solid #1e293b;font-family:monospace;font-size:0.8rem;color:#94a3b8">{f.get('rule_id','')}</td>
+          <td style="padding:0.5rem;border-bottom:1px solid #1e293b;">{cwe}</td>
+          <td style="padding:0.5rem;border-bottom:1px solid #1e293b;font-size:0.8rem;color:#cbd5e1">{f.get('file','').split('/')[-1]}:{f.get('line','')}</td>
+          <td style="padding:0.5rem;border-bottom:1px solid #1e293b;font-size:0.8rem;color:#94a3b8">{f.get('message','')[:120]}</td>
+        </tr>"""
+
+    agent_section = f"""
+        <div style="margin-top:2rem;background:#0d1117;border:1px solid #1e293b;border-radius:8px;padding:1.5rem;">
+          <h2 style="color:#00b4ff;margin:0 0 1rem;font-size:1rem;">AI Security Analysis</h2>
+          <p style="color:#94a3b8;line-height:1.7;white-space:pre-wrap">{state.get('agent_text','')}</p>
+        </div>""" if state.get("agent_text") else ""
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SOVA Security Report — {git_url.split('/')[-1].replace('.git','')}</title>
+<style>
+  @media print {{ .no-print {{ display:none; }} body {{ background:#fff!important; color:#000!important; }} }}
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ background:#050810; color:#e2e8f0; font-family:Inter,-apple-system,sans-serif; padding:2rem; }}
+  h1 {{ font-size:1.5rem; color:#f1f5f9; }}
+  h2 {{ font-size:1rem; color:#00b4ff; margin:1.5rem 0 0.75rem; }}
+  table {{ width:100%; border-collapse:collapse; }}
+  th {{ text-align:left; padding:0.5rem; background:#0d1117; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; }}
+</style>
+</head>
+<body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid #1e293b;">
+  <div>
+    <div style="font-size:0.72rem;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem;">SOVA — Sovereign Vulnerability Analysis Agent</div>
+    <h1>Security Scan Report</h1>
+    <div style="color:#475569;font-size:0.82rem;margin-top:0.4rem">{git_url}</div>
+    <div style="color:#334155;font-size:0.75rem;margin-top:0.2rem">Generated: {_dt.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#475569">{risk_label} RISK</div>
+    <div style="font-size:3rem;font-weight:800;color:{risk_color};line-height:1">{risk}</div>
+    <div style="font-size:0.7rem;color:#475569">Risk Score</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:2rem;">
+  {"".join(f'<div style="background:#0d1117;border:1px solid #1e293b;border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.75rem;font-weight:700;color:{sev_color.get(k,"#fff")}">{v}</div><div style="font-size:0.7rem;color:#475569;text-transform:uppercase">{k}</div></div>' for k,v in [("total",s.get("total",0)),("critical",s.get("severity_counts",{}).get("critical",0)),("high",s.get("severity_counts",{}).get("high",0)),("medium",s.get("severity_counts",{}).get("medium",0)),("low",s.get("severity_counts",{}).get("low",0))])}
+</div>
+
+<h2>Top Rules</h2>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:2rem;">
+  {"".join(f'<span style="background:#0d1117;border:1px solid #1e293b;border-radius:4px;padding:0.25rem 0.6rem;font-family:monospace;font-size:0.75rem;color:#94a3b8">{r["rule_id"]} ({r["count"]})</span>' for r in s.get("top_rules",[])[:5])}
+</div>
+
+<h2>Findings ({len(findings)} total, showing top 50)</h2>
+<table>
+  <thead><tr><th>Severity</th><th>Rule</th><th>CWE</th><th>Location</th><th>Description</th></tr></thead>
+  <tbody>{findings_html}</tbody>
+</table>
+
+{agent_section}
+
+<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #1e293b;font-size:0.72rem;color:#334155;">
+  Scanned inside a Kata VM with OpenShell egress policy enforcement. Data never left the cluster.
+  Red Hat OpenShift AI · DEMOJam 2027
+</div>
+</body>
+</html>"""
+
+    return HTMLResponse(content=html, headers={
+        "Content-Disposition": f'attachment; filename="sova-report-{scan_id[:8]}.html"'
+    })
+
+
 # In-memory chat job store: job_id -> {status, text}
 _chat_jobs: dict = {}
 
