@@ -29,6 +29,12 @@
       </div>
     </div>
 
+    <!-- Executive summary -->
+    <div v-if="props.result.agent_text" class="exec-summary">
+      <div class="exec-label">Executive Summary</div>
+      <p class="exec-body">{{ props.result.agent_text }}</p>
+    </div>
+
     <!-- Section header -->
     <div class="section-header">
       Scan Results
@@ -319,6 +325,27 @@ function downloadSarif() {
 
 <style scoped>
 .dashboard { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.exec-summary {
+  background: linear-gradient(135deg, rgba(0,180,255,0.04) 0%, rgba(8,12,24,0) 70%);
+  border: 1px solid rgba(0,180,255,0.14);
+  border-left: 3px solid rgba(0,180,255,0.5);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.exec-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #00b4ff;
+  margin-bottom: 0.5rem;
+}
+.exec-body {
+  font-size: 0.88rem;
+  color: #94a3b8;
+  line-height: 1.75;
+}
 
 .onprem-banner {
   background: rgba(34,197,94,0.04);

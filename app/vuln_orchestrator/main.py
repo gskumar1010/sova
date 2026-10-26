@@ -338,6 +338,57 @@ def _summarise_sarif(sarif: dict) -> dict:
     }
 
 
+def _generate_executive_summary(summary: dict, git_url: str) -> str:
+    """Generate a plain-English executive summary from scan data."""
+    total = summary.get("total", 0)
+    if total == 0:
+        repo = git_url.rstrip("/").split("/")[-1].replace(".git", "")
+        return (f"Static analysis of {repo} found no security vulnerabilities. "
+                f"The codebase passed all Semgrep and Bandit checks with a clean risk score. "
+                f"No immediate remediation is required, though continued scanning is recommended as the codebase evolves.")
+
+    sc = summary.get("severity_counts", {})
+    crit, high, med, low = sc.get("critical", 0), sc.get("high", 0), sc.get("medium", 0), sc.get("low", 0)
+    risk = summary.get("risk", 0)
+    repo = git_url.rstrip("/").split("/")[-1].replace(".git", "")
+
+    if risk >= 75:
+        posture = "CRITICAL security posture"
+        urgency = "Immediate action is required"
+    elif risk >= 45:
+        posture = "HIGH-RISK security posture"
+        urgency = "Prompt remediation is strongly advised"
+    elif risk >= 20:
+        posture = "MODERATE security posture"
+        urgency = "Remediation of high-severity findings should be prioritised"
+    else:
+        posture = "LOW-RISK security posture"
+        urgency = "Minor hardening is recommended"
+
+    top_rules = summary.get("top_rules", [])
+    rule_names = [r["rule_id"].split(".")[-1].replace("-", " ") for r in top_rules[:3]]
+    rule_str = ", ".join(rule_names) if rule_names else "various security rules"
+
+    findings = summary.get("findings", [])
+    cwes = list({f["cwe_id"] for f in findings if f.get("cwe_id")})[:3]
+    cwe_str = (", ".join(f"CWE-{c}" for c in cwes) + " ") if cwes else ""
+
+    sev_parts = []
+    if crit: sev_parts.append(f"{crit} critical")
+    if high: sev_parts.append(f"{high} high")
+    if med: sev_parts.append(f"{med} medium")
+    if low: sev_parts.append(f"{low} low")
+    sev_str = ", ".join(sev_parts)
+
+    return (
+        f"Static analysis of {repo} reveals a {posture} with a risk score of {risk}/100. "
+        f"A total of {total} vulnerabilities were identified ({sev_str}), "
+        f"spanning {cwe_str}triggered by patterns including {rule_str}. "
+        f"{urgency} — prioritising the {crit + high} critical and high-severity findings "
+        f"will have the greatest impact on reducing exploitability."
+    )
+
+
 def _run_full_scan(scan_id: str, git_url: str):
     """Background task: clone → semgrep → bandit → store results."""
     import tempfile, json
@@ -469,6 +520,7 @@ def _run_full_scan(scan_id: str, git_url: str):
             except Exception as ai_err:
                 _emit(scan_id, "analysis", "completed", f"AI skipped: {ai_err}")
         else:
+            agent_text = _generate_executive_summary(summary, scan_manager.get_scan(scan_id).get("git_url", ""))
             _emit(scan_id, "analysis", "completed", f"{summary['total']} total findings")
 
         _scan_state[scan_id] = {
