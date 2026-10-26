@@ -36,8 +36,8 @@ body::before {
   inset: 0;
   z-index: -1;
   background-image:
-    linear-gradient(rgba(0,180,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,180,255,0.02) 1px, transparent 1px);
+    linear-gradient(rgba(0,180,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,180,255,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none;
 }
