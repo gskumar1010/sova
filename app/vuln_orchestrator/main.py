@@ -280,15 +280,18 @@ def _summarise_sarif(sarif: dict) -> dict:
             cwe_url = None
             props = result.get("properties", {})
             if "issue_cwe" in props:
-                cwe_id = props["issue_cwe"].get("id")
+                _cid = props["issue_cwe"].get("id")
+                cwe_id = str(_cid) if _cid else None
                 cwe_url = props["issue_cwe"].get("link") or (f"https://cwe.mitre.org/data/definitions/{cwe_id}.html" if cwe_id else None)
             elif not cwe_id and rule_id in rules_by_id:
-                # Try semgrep rule tags
+                # Try semgrep rule tags — format is "CWE-78" or "CWE-78: Description"
                 for tag in rules_by_id[rule_id].get("properties", {}).get("tags", []):
                     if tag.startswith("CWE-"):
-                        cwe_id = tag.split("-")[1]
-                        cwe_url = f"https://cwe.mitre.org/data/definitions/{cwe_id}.html"
-                        break
+                        raw_num = tag.split("-")[1].split(":")[0].strip()
+                        if raw_num.isdigit():
+                            cwe_id = raw_num
+                            cwe_url = f"https://cwe.mitre.org/data/definitions/{cwe_id}.html"
+                            break
             # Fallback: bandit rule_id → CWE map
             if not cwe_id:
                 _BANDIT_CWE = {
