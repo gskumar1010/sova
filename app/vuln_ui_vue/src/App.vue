@@ -109,14 +109,14 @@ function saveHistory(entries) {
   } catch { /* quota exceeded — skip */ }
 }
 
-function loadHistory() {
+function hydrateFromStorage() {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (raw) scanHistory.value = JSON.parse(raw)
   } catch { /* corrupted — ignore */ }
 }
 
-onMounted(loadHistory)
+onMounted(hydrateFromStorage)
 
 async function handleScanStart(gitUrl) {
   currentGitUrl.value = gitUrl
