@@ -128,6 +128,47 @@ const DEMO_REPOS = [
   { label: '📡 Nuclei templates — vuln signatures',        url: 'https://github.com/projectdiscovery/nuclei-templates.git',         severity: 'medium' },
   { label: '🧩 OpenSSL vuln test suite',                   url: 'https://github.com/openssl/openssl.git',                           severity: 'medium' },
   { label: '🎭 FakeNet-NG — network simulation',           url: 'https://github.com/mandiant/flare-fakenet-ng.git',                 severity: 'low' },
+
+  // PHP / Web classics
+  { label: '🐘 Mutillidae II — OWASP PHP target',          url: 'https://github.com/webpwnized/mutillidae.git',                     severity: 'critical' },
+  { label: '💉 SQLi-Labs — SQL injection drills',           url: 'https://github.com/Audi-1/sqli-labs.git',                          severity: 'critical' },
+  { label: '📁 Upload-Labs — file upload vulns',            url: 'https://github.com/c0ny1/upload-labs.git',                         severity: 'high' },
+  { label: '🌐 DVJA — Damn Vulnerable Java Application',   url: 'https://github.com/appsecco/dvja.git',                             severity: 'high' },
+  { label: '🔷 WebGoat.NET — .NET OWASP target',           url: 'https://github.com/OWASP/WebGoat.NET.git',                         severity: 'high' },
+  // Spring / Java
+  { label: '🫘 VulnerableApp — Spring Boot vulns',         url: 'https://github.com/SasanLabs/VulnerableApp.git',                   severity: 'high' },
+  { label: '☕ OWASP Benchmark — Java SAST test suite',    url: 'https://github.com/OWASP/Benchmark.git',                           severity: 'medium' },
+  // Node / JS
+  { label: '🟩 vulnerable-node — Express.js vulns',        url: 'https://github.com/cr0hn/vulnerable-node.git',                     severity: 'high' },
+  // Python
+  { label: '🐍 Vulpy — vulnerable Python web app',         url: 'https://github.com/fportantier/vulpy.git',                         severity: 'high' },
+  { label: '🎯 Vulnerable Code Snippets — mixed langs',    url: 'https://github.com/snoopysecurity/Vulnerable-Code-Snippets.git',   severity: 'high' },
+  // Mobile
+  { label: '📱 DIVA Android — vulnerable mobile app',      url: 'https://github.com/payatu/diva-android.git',                       severity: 'high' },
+  { label: '🍎 iGoat-Swift — iOS security training',       url: 'https://github.com/OWASP/iGoat-Swift.git',                         severity: 'high' },
+  { label: '🤖 InjuredAndroid — Android CTF app',          url: 'https://github.com/B3nac/InjuredAndroid.git',                      severity: 'high' },
+  // Secrets
+  { label: '🔑 truffleHog3 — secrets scanner',             url: 'https://github.com/trufflesecurity/trufflehog.git',                severity: 'medium' },
+  { label: '🗝️ detect-secrets — Yelp secrets scanner',     url: 'https://github.com/Yelp/detect-secrets.git',                       severity: 'medium' },
+  // CVE PoCs
+  { label: '🚨 CVE-2022-0847 (Dirty Pipe) PoC',            url: 'https://github.com/AlexisAhmed/CVE-2022-0847-DirtyPipe-Exploits.git', severity: 'critical' },
+  { label: '🚨 CVE-2021-3156 (Sudo Baron Samedit) PoC',    url: 'https://github.com/blasty/CVE-2021-3156.git',                     severity: 'critical' },
+  { label: '🚨 CVE-2022-22965 (Spring4Shell alt PoC)',      url: 'https://github.com/reznok/Spring4Shell-POC.git',                   severity: 'critical' },
+  { label: '🚨 CVE-2019-0708 (BlueKeep) scanner',          url: 'https://github.com/Ekultek/BlueKeep.git',                          severity: 'critical' },
+  // Go
+  { label: '🐹 gosec — Go security scanner + tests',       url: 'https://github.com/securego/gosec.git',                            severity: 'medium' },
+  // Banking / Finance apps
+  { label: '🏦 SecureBank — .NET vulnerable banking app',  url: 'https://github.com/ssrdio/SecureBank.git',                         severity: 'high' },
+  // Misc tools with interesting code
+  { label: '🧬 PayloadsAllTheThings — attack payloads',    url: 'https://github.com/swisskyrepo/PayloadsAllTheThings.git',           severity: 'high' },
+  { label: '🛡️ Semgrep OSS — open source scanner',         url: 'https://github.com/semgrep/semgrep.git',                           severity: 'low' },
+  { label: '📡 httpx — HTTP toolkit',                       url: 'https://github.com/projectdiscovery/httpx.git',                    severity: 'low' },
+  { label: '🔬 Volatility3 — memory forensics',            url: 'https://github.com/volatilityfoundation/volatility3.git',          severity: 'low' },
+  { label: '🦠 HaveIBeenPwned downloader',                  url: 'https://github.com/HaveIBeenPwned/PwnedPasswordsDownloader.git',   severity: 'medium' },
+  { label: '🌀 Impacket — Windows protocol toolkit',        url: 'https://github.com/fortra/impacket.git',                           severity: 'high' },
+  { label: '🐺 Wfuzz — web fuzzer',                         url: 'https://github.com/xmendez/wfuzz.git',                             severity: 'medium' },
+  { label: '🔦 subfinder — subdomain discovery',            url: 'https://github.com/projectdiscovery/subfinder.git',                severity: 'low' },
+  { label: '🌊 Corsy — CORS misconfiguration scanner',      url: 'https://github.com/s0md3v/Corsy.git',                              severity: 'medium' },
 ]
 
 const selectedDemo = ref('')

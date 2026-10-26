@@ -32,6 +32,32 @@
         :logLines="logLines"
       />
 
+      <!-- Scan history strip — shown whenever there's history (idle or done) -->
+      <div v-if="scanHistory.length > 0 && phase !== 'scanning'" class="history-strip">
+        <div class="history-label">Recent scans</div>
+        <div class="history-cards">
+          <div
+            v-for="entry in scanHistory"
+            :key="entry.result.scan_id"
+            class="history-card"
+            :class="{ active: entry.result.scan_id === activeHistoryId }"
+            @click="loadHistory(entry)"
+          >
+            <div class="hc-repo">
+              {{ entry.result.git_url.split('/').slice(-2).join('/').replace('.git','') }}
+              <span v-if="entry.persisted" class="hc-badge">saved</span>
+            </div>
+            <div class="hc-meta">
+              <span class="hc-risk" :style="{ color: riskColor(entry.result.summary?.risk) }">
+                {{ entry.result.summary?.risk ?? '—' }}
+              </span>
+              <span class="hc-count">{{ entry.result.summary?.total ?? 0 }} findings</span>
+              <span class="hc-ts">{{ entry.ts }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <Dashboard
         v-if="phase === 'done' && scanResult"
         :result="scanResult"
@@ -49,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import Banner from './components/Banner.vue'
 import ChatDrawer from './components/ChatDrawer.vue'
 import ScanInput from './components/ScanInput.vue'
@@ -65,6 +91,34 @@ const currentGitUrl = ref('')
 const errorMsg = ref('')
 const progressEvents = ref([])
 const logLines = ref([])
+const scanHistory = ref([])   // [{result, logLines, ts, persisted}]
+const activeHistoryId = ref(null)
+
+const LS_KEY = 'sova_history'
+
+function saveHistory(entries) {
+  try {
+    // Strip sarif (large) before persisting
+    const slim = entries.map(e => ({
+      ...e,
+      result: { ...e.result, sarif: undefined },
+      logLines: e.logLines.slice(-30),
+      persisted: true
+    }))
+    localStorage.setItem(LS_KEY, JSON.stringify(slim.slice(0, 5)))
+  } catch { /* quota exceeded — skip */ }
+}
+
+function hydrateFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return
+    const entries = JSON.parse(raw)
+    if (entries.length) scanHistory.value = entries
+  } catch { /* corrupted — ignore */ }
+}
+
+onMounted(hydrateFromStorage)
 
 async function handleScanStart(gitUrl) {
   currentGitUrl.value = gitUrl
@@ -106,13 +160,29 @@ async function handleScanStart(gitUrl) {
 async function fetchResult(scan_id) {
   try {
     const result = await getResult(scan_id)
-    scanResult.value = { ...result, scan_id, git_url: currentGitUrl.value }
-    phase.value = 'done'
+    const fullResult = { ...result, scan_id, git_url: currentGitUrl.value }
     logLines.value.push({ ts: now(), text: `✓ Scan complete — ${result.summary?.total || 0} findings` })
+    scanResult.value = fullResult
+    activeHistoryId.value = scan_id
+    phase.value = 'done'
+    // Keep last 8 in-session, 5 persisted; newest first
+    const newHistory = [
+      { result: fullResult, logLines: [...logLines.value], ts: new Date().toLocaleTimeString(), persisted: false },
+      ...scanHistory.value.filter(h => h.result.scan_id !== scan_id)
+    ].slice(0, 8)
+    scanHistory.value = newHistory
+    saveHistory(newHistory)
   } catch (err) {
     phase.value = 'error'
     errorMsg.value = err.message || 'Failed to retrieve results'
   }
+}
+
+function loadHistory(entry) {
+  scanResult.value = entry.result
+  logLines.value = entry.logLines
+  activeHistoryId.value = entry.result.scan_id
+  phase.value = 'done'
 }
 
 function resetScan() {
@@ -121,6 +191,13 @@ function resetScan() {
   progressEvents.value = []
   logLines.value = []
   scanId.value = null
+}
+
+function riskColor(r) {
+  if (r >= 75) return '#ef4444'
+  if (r >= 45) return '#f97316'
+  if (r >= 20) return '#eab308'
+  return '#22c55e'
 }
 
 function now() {
@@ -145,6 +222,58 @@ function now() {
   margin: 0 auto;
   padding: 2rem 3rem;
   margin-top: 2rem; /* space for owl branch overhanging banner border */
+}
+
+.history-strip {
+  margin-top: 2rem;
+  margin-bottom: 1.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.history-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+.history-cards {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.history-card {
+  background: rgba(8,12,24,0.7);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  min-width: 160px;
+  max-width: 220px;
+}
+.history-card:hover { border-color: rgba(0,180,255,0.25); background: rgba(0,180,255,0.04); }
+.history-card.active { border-color: rgba(0,180,255,0.4); background: rgba(0,180,255,0.06); }
+.hc-repo {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.3rem;
+}
+.hc-meta { display: flex; align-items: center; gap: 0.5rem; }
+.hc-risk { font-size: 1rem; font-weight: 800; line-height: 1; }
+.hc-count { font-size: 0.68rem; color: #475569; }
+.hc-ts { font-size: 0.65rem; color: #334155; margin-left: auto; }
+.hc-badge {
+  font-size: 0.55rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; background: rgba(0,180,255,0.1);
+  border: 1px solid rgba(0,180,255,0.2); border-radius: 3px;
+  padding: 1px 4px; color: #00b4ff; margin-left: 0.3rem; vertical-align: middle;
 }
 
 .intro-card {
