@@ -20,26 +20,13 @@
   --mono: 'JetBrains Mono', monospace;
 }
 
-html {
-  background: var(--bg);
-  background-image:
-    linear-gradient(rgba(0,180,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,180,255,0.02) 1px, transparent 1px);
-  background-size: 56px 56px;
-}
-
-body {
+html, body {
   min-height: 100vh;
-  background: transparent;
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.5;
-}
-
-/* Main content sits on a solid layer so grid only shows behind it in margins */
-.main-content {
-  background: #050810;
 }
 
 /* Scrollbar */
