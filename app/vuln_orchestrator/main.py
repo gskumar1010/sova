@@ -514,22 +514,42 @@ def api_full_result(scan_id: str):
     }
 
 
+# In-memory chat job store: job_id -> {status, text}
+_chat_jobs: dict = {}
+
+
 @app.post("/api/chat")
-def api_chat(request: ChatRequest):
-    """Run message through OpenCode agent in the Kata VM sandbox."""
+def api_chat(request: ChatRequest, background_tasks: BackgroundTasks):
+    """Submit a chat message as a background job — returns job_id immediately."""
+    job_id = str(uuid.uuid4())
+    _chat_jobs[job_id] = {"status": "running", "text": None}
+    background_tasks.add_task(_run_chat_job, job_id, request.message, request.scan_id)
+    return {"job_id": job_id, "status": "running"}
+
+
+@app.get("/api/chat/{job_id}")
+def api_chat_result(job_id: str):
+    """Poll for a chat job result."""
+    job = _chat_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Chat job not found")
+    return job
+
+
+def _run_chat_job(job_id: str, message: str, scan_id: str | None):
     from app.vuln_orchestrator.scan_service import _make_client, SANDBOX, WORKSPACE, TIMEOUT
     import re
 
     try:
         client = _make_client()
     except Exception as e:
-        return {"role": "assistant", "text": f"Agent unavailable: {e}"}
+        _chat_jobs[job_id] = {"status": "done", "text": f"Agent unavailable: {e}"}
+        return
 
     try:
-        # Build context-aware prompt if a scan_id is provided
-        prompt = request.message
-        if request.scan_id and request.scan_id in _scan_state:
-            state = _scan_state[request.scan_id]
+        prompt = message
+        if scan_id and scan_id in _scan_state:
+            state = _scan_state[scan_id]
             summary = state.get("summary") or {}
             if summary:
                 top_rules = ", ".join(
@@ -543,7 +563,7 @@ def api_chat(request: ChatRequest):
                     f"Top rules: {top_rules}. "
                     f"Results are at /sandbox/tmp/semgrep.sarif and /sandbox/tmp/bandit.json]\n\n"
                 )
-                prompt = context + request.message
+                prompt = context + message
 
         r = client.exec(
             sandbox=SANDBOX,
@@ -553,15 +573,14 @@ def api_chat(request: ChatRequest):
             no_login_shell=True,
         )
         raw = (r.stdout or "") + (r.stderr or "")
-        # Strip opencode build header and harmony tokens
         clean = re.sub(r"(?m)^\s*>\s*build\b.*$", "", r.stdout or "").strip()
         if "<channel|>" in clean:
             clean = clean.rsplit("<channel|>", 1)[-1]
         clean = re.sub(r"<\|?[^>\n]*\|?>", "", clean).strip()
-        text = clean or raw[:2000] or "No response from agent."
-        return {"role": "assistant", "text": text}
+        text = clean or raw[:4000] or "No response from agent."
+        _chat_jobs[job_id] = {"status": "done", "text": text}
     except Exception as e:
-        return {"role": "assistant", "text": f"Agent error: {e}"}
+        _chat_jobs[job_id] = {"status": "done", "text": f"Agent error: {e}"}
     finally:
         try:
             client.close()
