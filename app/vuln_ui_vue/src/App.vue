@@ -5,6 +5,22 @@
     <ChatDrawer :open="chatOpen" :scanId="scanId" @close="chatOpen = false" />
 
     <main class="main-content">
+      <div v-if="phase === 'idle'" class="intro-card">
+        <div class="intro-title">Sovereign Vulnerability Analysis</div>
+        <p class="intro-body">
+          Submit any public Git repository and SOVA will scan it for security vulnerabilities
+          using Semgrep and Bandit — all inside a hardware-isolated Kata VM with enforced
+          network egress control. Your code never leaves the cluster.
+        </p>
+        <div class="intro-badges">
+          <span class="intro-badge">🔒 Zero data egress</span>
+          <span class="intro-badge">⚡ Semgrep · 694 rules</span>
+          <span class="intro-badge">🐍 Bandit · Python SAST</span>
+          <span class="intro-badge">🤖 AI remediation</span>
+          <span class="intro-badge">📄 Exportable report</span>
+        </div>
+      </div>
+
       <ScanInput
         v-if="phase === 'idle'"
         @start-scan="handleScanStart"
@@ -128,6 +144,39 @@ function now() {
   margin: 0 auto;
   padding: 2rem 3rem;
   margin-top: 2rem; /* space for owl branch overhanging banner border */
+}
+
+.intro-card {
+  background: linear-gradient(135deg, rgba(0,180,255,0.04) 0%, rgba(8,12,24,0) 60%);
+  border: 1px solid rgba(0,180,255,0.12);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+}
+.intro-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(90deg, #f1f5f9 40%, #00b4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.intro-body {
+  font-size: 0.92rem;
+  color: #64748b;
+  line-height: 1.7;
+  max-width: 640px;
+  margin-bottom: 1.25rem;
+}
+.intro-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.intro-badge {
+  background: rgba(0,180,255,0.06);
+  border: 1px solid rgba(0,180,255,0.15);
+  border-radius: 100px;
+  padding: 0.25rem 0.85rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
 }
 
 .error-panel {

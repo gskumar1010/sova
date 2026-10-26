@@ -88,6 +88,46 @@ const DEMO_REPOS = [
   { label: '🔥 SSRF test server',                           url: 'https://github.com/assetnote/surf.git',              severity: 'medium' },
   { label: '🕳️ XXE injection demo',                          url: 'https://github.com/c0ny1/xxe-lab.git',              severity: 'high' },
   { label: '💡 SQLMap — SQL injection tool',                url: 'https://github.com/sqlmapproject/sqlmap.git',        severity: 'high' },
+
+  // More OWASP / training
+  { label: '🎯 Damn Vulnerable GraphQL App',               url: 'https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application.git', severity: 'high' },
+  { label: '🐚 ShellShock demo (CVE-2014-6271)',           url: 'https://github.com/opsxcq/exploit-CVE-2014-6271.git',              severity: 'critical' },
+  { label: '🧬 Struts2 RCE (CVE-2017-5638)',               url: 'https://github.com/opsxcq/exploit-CVE-2017-5638.git',              severity: 'critical' },
+  { label: '🏴 HackTheBox — vulnerable machines',          url: 'https://github.com/Hackplayers/hackthebox-writeups.git',           severity: 'high' },
+  { label: '🎪 VAmPI — Vulnerable REST API (Python)',      url: 'https://github.com/erev0s/VAmPI.git',                              severity: 'high' },
+  { label: '🗡️ DVSA — Damn Vulnerable Serverless App',     url: 'https://github.com/OWASP/DVSA.git',                               severity: 'high' },
+  { label: '🔮 WrongSecrets — secrets mismanagement',      url: 'https://github.com/OWASP/wrongsecrets.git',                        severity: 'critical' },
+  { label: '🕵️ Secretz — leaked secrets scanner test',     url: 'https://github.com/Checkmarx/secret-detection-benchmark.git',     severity: 'critical' },
+
+  // Python vulns
+  { label: '🐍 Vulnerable Flask app — injection labs',     url: 'https://github.com/we45/Vulnerable-Flask-App.git',                 severity: 'critical' },
+  { label: '🌊 Sanic — async Python webapp vulns',         url: 'https://github.com/sanic-org/sanic.git',                          severity: 'low' },
+  { label: '📦 Pip audit test packages',                   url: 'https://github.com/pypa/pip-audit.git',                            severity: 'medium' },
+
+  // Java
+  { label: '☕ Spring4Shell PoC (CVE-2022-22965)',         url: 'https://github.com/BobTheShoplifter/Spring4Shell-POC.git',          severity: 'critical' },
+  { label: '🫘 JavaGoat — OWASP Java vulns',              url: 'https://github.com/OWASP/javagoat.git',                            severity: 'high' },
+
+  // Infrastructure / Cloud
+  { label: '🏚️ CloudGoat — vulnerable AWS env',            url: 'https://github.com/RhinoSecurityLabs/cloudgoat.git',               severity: 'critical' },
+  { label: '🌩️ GCPGoat — vulnerable GCP env',             url: 'https://github.com/ine-labs/GCPGoat.git',                          severity: 'critical' },
+  { label: '🔷 AzureGoat — vulnerable Azure env',          url: 'https://github.com/ine-labs/AzureGoat.git',                        severity: 'critical' },
+  { label: '⚓ HelmGoat — Helm chart misconfigs',          url: 'https://github.com/bridgecrewio/helmgoat.git',                     severity: 'high' },
+  { label: '🐋 DockerGoat — container misconfigs',         url: 'https://github.com/WhistleSecurity/dockergoat.git',                severity: 'high' },
+
+  // Secrets
+  { label: '🔑 Gitleaks test repo — secret patterns',     url: 'https://github.com/gitleaks/gitleaks.git',                         severity: 'medium' },
+  { label: '🔐 Semgrep test rules — security patterns',   url: 'https://github.com/returntocorp/semgrep-rules.git',                 severity: 'medium' },
+
+  // Real-world known-vuln
+  { label: '📸 ImageMagick CVE PoC',                       url: 'https://github.com/swisskyrepo/PayloadsAllTheThings.git',           severity: 'high' },
+  { label: '🌀 Log4j2 RCE scanner',                        url: 'https://github.com/logpresso/CVE-2021-44228-Scanner.git',          severity: 'critical' },
+  { label: '💀 EternalBlue PoC (MS17-010)',                 url: 'https://github.com/worawit/MS17-010.git',                          severity: 'critical' },
+  { label: '🕸️ Damn Vulnerable Web Services',              url: 'https://github.com/snoopysecurity/dvws-node.git',                  severity: 'high' },
+  { label: '🦠 Metasploit sample payloads',                url: 'https://github.com/rapid7/metasploit-payloads.git',                severity: 'critical' },
+  { label: '📡 Nuclei templates — vuln signatures',        url: 'https://github.com/projectdiscovery/nuclei-templates.git',         severity: 'medium' },
+  { label: '🧩 OpenSSL vuln test suite',                   url: 'https://github.com/openssl/openssl.git',                           severity: 'medium' },
+  { label: '🎭 FakeNet-NG — network simulation',           url: 'https://github.com/mandiant/flare-fakenet-ng.git',                 severity: 'low' },
 ]
 
 const selectedDemo = ref('')
