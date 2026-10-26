@@ -48,7 +48,7 @@ const DEMO_REPOS = [
   { label: '💣 Devastator — Supply chain attack demo',     url: 'https://github.com/pkredhat/devastator.git',           severity: 'critical' },
   // Python
   { label: '🐍 PyGoat — Vulnerable Django app',            url: 'https://github.com/adeyosemanputra/pygoat.git',        severity: 'high' },
-  { label: '🌶️ VulnHub Flask — SQLi, XSS, CSRF',           url: 'https://github.com/signalsciences/vuln-flask-app.git', severity: 'high' },
+  { label: '🌶️ DVNA — Damn Vulnerable Node App',            url: 'https://github.com/appsecco/dvna.git',                severity: 'high' },
   { label: '🔐 Django Piston — insecure API',              url: 'https://github.com/toastdriven/django-piston.git',     severity: 'medium' },
   // Terraform / Cloud
   { label: '☁️ TerraGoat — Terraform misconfigs',           url: 'https://github.com/bridgecrewio/terragoat.git',       severity: 'high' },
@@ -69,8 +69,7 @@ const DEMO_REPOS = [
   { label: '🔓 truffleHog test — leaked secrets',           url: 'https://github.com/trufflesecurity/test_keys.git',   severity: 'critical' },
   { label: '🗝️ git-secrets test repos',                     url: 'https://github.com/awslabs/git-secrets.git',         severity: 'medium' },
   // Container
-  { label: '📦 Vulnerable Node Docker app',                 url: 'https://github.com/appsecco/dvna.git',               severity: 'high' },
-  { label: '🐋 Damn Vulnerable NodeJS App',                 url: 'https://github.com/nicowillis/dvna.git',             severity: 'high' },
+  { label: '🔌 crAPI — Completely Ridiculous API (REST vulns)', url: 'https://github.com/OWASP/crAPI.git',              severity: 'high' },
   // Real frameworks with known issues
   { label: '🍶 Flask — Python web framework',               url: 'https://github.com/pallets/flask.git',               severity: 'low' },
   { label: '🐘 Django — Python web framework',              url: 'https://github.com/django/django.git',               severity: 'low' },
@@ -84,7 +83,7 @@ const DEMO_REPOS = [
   { label: '📱 InsecureBankv2 — Android vulns',             url: 'https://github.com/dineshshetty/Android-InsecureBankv2.git', severity: 'high' },
   // More CVE
   { label: '🚨 CVE-2021-44228 (Log4Shell) PoC',            url: 'https://github.com/christophetd/log4shell-vulnerable-app.git', severity: 'critical' },
-  { label: '🚨 CVE-2022-0811 (CRI-O escape) demo',         url: 'https://github.com/MaherAzzouzi/CVE-2022-0811.git',  severity: 'critical' },
+  { label: '🚨 XXE Injection lab (CWE-611)',                url: 'https://github.com/c0ny1/xxe-lab.git',               severity: 'critical' },
   // Misc
   { label: '🔥 SSRF test server',                           url: 'https://github.com/assetnote/surf.git',              severity: 'medium' },
   { label: '🕳️ XXE injection demo',                          url: 'https://github.com/c0ny1/xxe-lab.git',              severity: 'high' },
