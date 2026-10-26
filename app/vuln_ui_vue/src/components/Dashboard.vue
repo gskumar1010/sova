@@ -28,9 +28,17 @@
 
     <!-- Metric cards -->
     <div class="metrics-row">
-      <div class="mcard risk" :style="{ '--risk-color': riskColor }">
-        <div class="risk-badge">{{ riskLabel }} RISK</div>
-        <div class="mval" :style="{ color: riskColor }">{{ animRisk }}</div>
+      <div class="mcard risk">
+        <div class="risk-badge" :style="{ color: riskColor }">{{ riskLabel }} RISK</div>
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 100 100" class="gauge-svg">
+            <circle cx="50" cy="50" r="38" class="gauge-track" />
+            <circle cx="50" cy="50" r="38" class="gauge-fill"
+              :style="{ stroke: riskColor, strokeDashoffset: gaugeOffset }"
+            />
+          </svg>
+          <div class="gauge-num" :style="{ color: riskColor }">{{ animRisk }}</div>
+        </div>
         <div class="mlbl">Risk Score</div>
       </div>
       <div class="mcard total">
@@ -206,6 +214,9 @@ const riskLabel = computed(() => {
   return 'LOW'
 })
 
+const GAUGE_CIRC = 2 * Math.PI * 38  // r=38 → 238.76
+const gaugeOffset = computed(() => GAUGE_CIRC * (1 - animRisk.value / 100))
+
 const topRuleIds = computed(() =>
   (summary.value.top_rules || []).map(r => r.rule_id)
 )
@@ -373,8 +384,41 @@ function downloadSarif() {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: v-bind(riskColor);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.gauge-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  margin: 0.25rem auto 0.4rem;
+}
+.gauge-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.gauge-track {
+  fill: none;
+  stroke: rgba(255,255,255,0.06);
+  stroke-width: 8;
+}
+.gauge-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 238.76;
+  transition: stroke-dashoffset 0.05s linear, stroke 0.4s;
+}
+.gauge-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -1px;
 }
 
 .mval {
