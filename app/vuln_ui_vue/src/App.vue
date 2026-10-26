@@ -112,7 +112,16 @@ function saveHistory(entries) {
 function hydrateFromStorage() {
   try {
     const raw = localStorage.getItem(LS_KEY)
-    if (raw) scanHistory.value = JSON.parse(raw)
+    if (!raw) return
+    const entries = JSON.parse(raw)
+    if (!entries.length) return
+    scanHistory.value = entries
+    // Restore most recent scan so dashboard shows on refresh
+    const latest = entries[0]
+    scanResult.value = latest.result
+    logLines.value = latest.logLines || []
+    activeHistoryId.value = latest.result.scan_id
+    phase.value = 'done'
   } catch { /* corrupted — ignore */ }
 }
 
