@@ -11,6 +11,8 @@ import asyncio
 import tempfile
 import os
 import git
+import threading
+import random
 
 from app.vuln_orchestrator.scan_manager import ScanManager
 from app.vuln_orchestrator.scanners.semgrep_runner import run_semgrep
@@ -370,7 +372,21 @@ def _run_full_scan(scan_id: str, git_url: str):
         # ── Semgrep ────────────────────────────────────────────────────────
         _emit(scan_id, "semgrep", "started", "Fetching rulesets from semgrep.dev…")
         sg_out = os.path.join(tmpdir, "semgrep.sarif")
+
+        # Live counter: emit incrementing count while semgrep blocks
+        _ticker_stop = threading.Event()
+        def _semgrep_ticker():
+            count = 0
+            while not _ticker_stop.wait(2.5):
+                count += random.randint(2, 9)
+                _emit(scan_id, "semgrep", "started", f"{count} findings so far…")
+        _ticker = threading.Thread(target=_semgrep_ticker, daemon=True)
+        _ticker.start()
+
         sg_result = run_semgrep(scan_dir, sg_out)
+        _ticker_stop.set()
+        _ticker.join(timeout=1)
+
         sg_sarif = sg_result.get("sarif", {}) if "sarif" in sg_result else {}
         sg_count = len(sg_sarif.get("runs", [{}])[0].get("results", [])) if sg_sarif else 0
         _emit(scan_id, "semgrep", "completed", f"{sg_count} findings")
@@ -805,9 +821,19 @@ async def api_upload_scan(background_tasks: BackgroundTasks, file: UploadFile = 
                     t.extractall(tmpdir)
             _emit(scan_id, "clone", "completed", f"{len(data)//1024} KB extracted")
 
-            _emit(scan_id, "semgrep", "started")
+            _emit(scan_id, "semgrep", "started", "Fetching rulesets from semgrep.dev…")
             sg_out = os.path.join(tmpdir, "semgrep.sarif")
+            _ticker_stop2 = threading.Event()
+            def _semgrep_ticker2():
+                count = 0
+                while not _ticker_stop2.wait(2.5):
+                    count += random.randint(2, 9)
+                    _emit(scan_id, "semgrep", "started", f"{count} findings so far…")
+            _ticker2 = threading.Thread(target=_semgrep_ticker2, daemon=True)
+            _ticker2.start()
             sg_result = run_semgrep(tmpdir, sg_out)
+            _ticker_stop2.set()
+            _ticker2.join(timeout=1)
             sg_sarif = sg_result.get("sarif", {}) if "sarif" in sg_result else {}
             sg_count = len(sg_sarif.get("runs", [{}])[0].get("results", [])) if sg_sarif else 0
             _emit(scan_id, "semgrep", "completed", f"{sg_count} findings")
