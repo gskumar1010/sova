@@ -106,7 +106,7 @@ function pct(stepKey) {
 }
 
 // Track start times from events
-import { watch } from 'vue'
+import { watch, nextTick } from 'vue'
 watch(() => props.events, (evs) => {
   for (const ev of evs) {
     if (ev.status === 'started' && !startTimes.value[ev.step]) {
@@ -114,6 +114,13 @@ watch(() => props.events, (evs) => {
     }
   }
 }, { deep: true })
+
+// Auto-scroll log to bottom when new lines arrive
+watch(() => props.logLines.length, () => {
+  nextTick(() => {
+    if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+  })
+})
 </script>
 
 <style scoped>
@@ -217,12 +224,16 @@ watch(() => props.events, (evs) => {
   font-family: var(--mono);
   font-size: 0.72rem;
   color: #475569;
-  max-height: 160px;
-  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  scroll-behavior: smooth;
 }
+.log-panel::-webkit-scrollbar { width: 4px; }
+.log-panel::-webkit-scrollbar-track { background: transparent; }
+.log-panel::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.2); border-radius: 2px; }
 .log-line { display: flex; gap: 0.6rem; }
 .log-ts { color: #334155; flex-shrink: 0; }
 .elapsed-timer { color: #eab308; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; }
