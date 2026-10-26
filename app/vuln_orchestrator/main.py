@@ -460,6 +460,10 @@ def _run_full_scan(scan_id: str, git_url: str):
             "agent_text": agent_text,
         }
 
+        # Kick off AI remediation in the background
+        import threading as _threading
+        _threading.Thread(target=_generate_remediation, args=(scan_id,), daemon=True).start()
+
     except Exception as exc:
         _emit(scan_id, "clone", "failed", str(exc)[:200])
         _scan_state[scan_id] = {"status": "failed", "error": str(exc), "sarif": None, "summary": None}
@@ -615,6 +619,83 @@ def api_scan_report(scan_id: str):
     return HTMLResponse(content=html, headers={
         "Content-Disposition": f'attachment; filename="sova-report-{scan_id[:8]}.html"'
     })
+
+
+# In-memory remediation store: scan_id -> {status, fixes: [...]}
+_remediation: dict = {}
+
+
+def _generate_remediation(scan_id: str):
+    """Background: ask agent to fix top 3 critical/high findings."""
+    from app.vuln_orchestrator.scan_service import _make_client, SANDBOX, WORKSPACE, TIMEOUT
+    import re, threading
+
+    state = _scan_state.get(scan_id, {})
+    summary = state.get("summary") or {}
+    findings = summary.get("findings", [])
+
+    # Pick top 3 critical or high
+    top = [f for f in findings if f.get("severity") in ("critical", "high")][:3]
+    if not top:
+        top = findings[:3]
+
+    _remediation[scan_id] = {"status": "running", "fixes": []}
+
+    try:
+        client = _make_client()
+    except Exception:
+        _remediation[scan_id] = {"status": "done", "fixes": []}
+        return
+
+    fixes = []
+    for f in top:
+        rule_id = f.get("rule_id", "")
+        file_path = f.get("file", "")
+        line = f.get("line", 0)
+        message = f.get("message", "")
+        cwe_id = f.get("cwe_id", "")
+        cwe_str = f" (CWE-{cwe_id})" if cwe_id else ""
+
+        prompt = (
+            f"Security finding in {file_path} at line {line}:\n"
+            f"Rule: {rule_id}{cwe_str}\n"
+            f"Issue: {message}\n\n"
+            f"Read the file at /sandbox/tmp/scan/{'/'.join(file_path.split('/')[-2:])} "
+            f"and show:\n"
+            f"1. The vulnerable code (3-5 lines around line {line})\n"
+            f"2. The fixed version\n"
+            f"3. One sentence: why this fixes it\n\n"
+            f"Format with ```python code blocks. Be concise."
+        )
+
+        try:
+            r = client.exec(sandbox=SANDBOX, command=["opencode", "run", prompt],
+                           workspace=WORKSPACE, timeout_seconds=int(TIMEOUT), no_login_shell=True)
+            raw = r.stdout or r.stderr or ""
+            clean = re.sub(r"(?m)^\s*>\s*build\b.*$", "", r.stdout or "").strip()
+            if "<channel|>" in clean:
+                clean = clean.rsplit("<channel|>", 1)[-1]
+            clean = re.sub(r"<\|?[^>\n]*\|?>", "", clean).strip()
+            text = clean or raw[:3000]
+        except Exception as e:
+            text = f"Could not generate fix: {e}"
+
+        fixes.append({
+            "rule_id": rule_id, "file": file_path, "line": line,
+            "severity": f.get("severity"), "cwe_id": cwe_id,
+            "message": message, "fix_text": text,
+        })
+
+    try: client.close()
+    except Exception: pass
+
+    _remediation[scan_id] = {"status": "done", "fixes": fixes}
+
+
+@app.get("/api/scan/remediation/{scan_id}")
+def api_remediation(scan_id: str):
+    """Return AI remediation fixes for top findings."""
+    return _remediation.get(scan_id, {"status": "not_started", "fixes": []})
 
 
 # In-memory chat job store: job_id -> {status, text}

@@ -107,6 +107,9 @@
       </div>
     </div>
 
+    <!-- AI Remediation -->
+    <Remediation v-if="summary.total > 0" :scanId="props.result.scan_id" />
+
     <!-- Actions -->
     <div class="actions-row">
       <button class="btn-primary" @click="downloadReport">📄 Download Security Report</button>
@@ -118,6 +121,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import Remediation from './Remediation.vue'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
