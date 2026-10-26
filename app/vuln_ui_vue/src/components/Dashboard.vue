@@ -1,10 +1,10 @@
 <template>
   <div class="dashboard">
     <!-- Session trace log — collapsed by default, above results -->
-    <details class="trace-section" @toggle="loadTrace">
+    <details class="trace-section">
       <summary class="trace-toggle">🔍 Session Trace Log</summary>
-      <pre class="trace-log" v-if="traceLines.length">{{ traceLines.join('\n') }}</pre>
-      <div v-else class="trace-empty">No trace data yet.</div>
+      <pre class="trace-log" v-if="scanLog && scanLog.length">{{ scanLog.map(l => `${l.ts} ${l.text}`).join('\n') }}</pre>
+      <div v-else class="trace-empty">No trace data.</div>
     </details>
 
     <!-- On-prem callout -->
@@ -140,20 +140,10 @@ import {
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
 const props = defineProps({
-  result: { type: Object, required: true }
+  result: { type: Object, required: true },
+  scanLog: { type: Array, default: () => [] }
 })
 defineEmits(['new-scan'])
-
-const traceLines = ref([])
-async function loadTrace() {
-  const scanId = props.result?.scan_id
-  if (!scanId || traceLines.value.length) return
-  try {
-    const r = await fetch(`/api/scan/trace/${scanId}`)
-    const d = await r.json()
-    traceLines.value = d.lines || []
-  } catch { /* silent */ }
-}
 
 const ruleFilter = ref('')
 

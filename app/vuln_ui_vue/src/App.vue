@@ -35,6 +35,7 @@
       <Dashboard
         v-if="phase === 'done' && scanResult"
         :result="scanResult"
+        :scanLog="logLines"
         @new-scan="resetScan"
       />
 
