@@ -40,7 +40,7 @@ defineEmits(['toggle-chat'])
   justify-content: space-between;
   background: linear-gradient(90deg, rgba(5,8,16,0.99) 0%, rgba(0,25,50,0.96) 100%);
   border-bottom: 1px solid rgba(0,180,255,0.15);
-  padding: 1.5rem 2rem 0;
+  padding: 1.5rem 2rem 0 0; /* left=0 so owl branch touches the edge */
   flex-wrap: wrap;
   gap: 0.5rem;
 }
