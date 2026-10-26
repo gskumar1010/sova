@@ -6,11 +6,12 @@
 
     <main class="main-content">
       <div v-if="phase === 'idle'" class="intro-card">
-        <div class="intro-title">Sovereign Vulnerability Analysis</div>
+        <div class="intro-title">Sovereign Vulnerability Analysis Tool</div>
         <p class="intro-body">
-          Submit any public Git repository and SOVA will scan it for security vulnerabilities
-          using Semgrep and Bandit — all inside a hardware-isolated Kata VM with enforced
-          network egress control. Your code never leaves the cluster.
+          <em>Sova</em> means owl in several languages — a perfect symbol for a sharp-eyed,
+          night-watching agent. Submit any public Git repository and SOVA will scan it for
+          security vulnerabilities using Semgrep and Bandit — all inside a hardware-isolated
+          Kata VM with enforced network egress control. Your code never leaves the cluster.
         </p>
         <div class="intro-badges">
           <span class="intro-badge">🔒 Zero data egress</span>
