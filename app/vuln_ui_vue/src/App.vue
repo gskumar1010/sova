@@ -32,8 +32,8 @@
         :logLines="logLines"
       />
 
-      <!-- Scan history strip — shown whenever there's history and results are showing -->
-      <div v-if="scanHistory.length > 0 && phase === 'done'" class="history-strip">
+      <!-- Scan history strip — shown whenever there's history (idle or done) -->
+      <div v-if="scanHistory.length > 0 && phase !== 'scanning'" class="history-strip">
         <div class="history-label">Recent scans</div>
         <div class="history-cards">
           <div
@@ -114,14 +114,7 @@ function hydrateFromStorage() {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return
     const entries = JSON.parse(raw)
-    if (!entries.length) return
-    scanHistory.value = entries
-    // Restore most recent scan so dashboard shows on refresh
-    const latest = entries[0]
-    scanResult.value = latest.result
-    logLines.value = latest.logLines || []
-    activeHistoryId.value = latest.result.scan_id
-    phase.value = 'done'
+    if (entries.length) scanHistory.value = entries
   } catch { /* corrupted — ignore */ }
 }
 
