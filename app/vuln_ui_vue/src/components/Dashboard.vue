@@ -281,17 +281,25 @@ const rulesBarData = computed(() => {
 })
 
 const filesBarData = computed(() => {
+  const SEV_ORDER = { critical: 4, high: 3, medium: 2, low: 1 }
+  const SEV_BG    = { critical: 'rgba(239,68,68,0.55)',  high: 'rgba(249,115,22,0.5)', medium: 'rgba(234,179,8,0.45)',  low: 'rgba(59,130,246,0.45)' }
+  const SEV_BORDER= { critical: 'rgba(239,68,68,0.9)',   high: 'rgba(249,115,22,0.85)',medium: 'rgba(234,179,8,0.8)',   low: 'rgba(59,130,246,0.8)' }
+
   const fileCounts = {}
+  const fileWorstSev = {}
   for (const f of findings.value) {
     fileCounts[f.file] = (fileCounts[f.file] || 0) + 1
+    if (!fileWorstSev[f.file] || SEV_ORDER[f.severity] > SEV_ORDER[fileWorstSev[f.file]]) {
+      fileWorstSev[f.file] = f.severity
+    }
   }
   const sorted = Object.entries(fileCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
   return {
     labels: sorted.map(([f]) => f.split('/').slice(-2).join('/')),
     datasets: [{
       data: sorted.map(([, c]) => c),
-      backgroundColor: 'rgba(0,180,255,0.4)',
-      borderColor: 'rgba(0,180,255,0.7)',
+      backgroundColor: sorted.map(([f]) => SEV_BG[fileWorstSev[f]]    || SEV_BG.low),
+      borderColor:     sorted.map(([f]) => SEV_BORDER[fileWorstSev[f]] || SEV_BORDER.low),
       borderWidth: 1,
       borderRadius: 4,
     }]
