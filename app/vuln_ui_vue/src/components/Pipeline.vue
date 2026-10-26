@@ -225,6 +225,6 @@ watch(() => props.events, (evs) => {
 }
 .log-line { display: flex; gap: 0.6rem; }
 .log-ts { color: #334155; flex-shrink: 0; }
-.elapsed-timer { color: var(--text-muted); font-size: 0.78rem; }
+.elapsed-timer { color: #eab308; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 </style>
