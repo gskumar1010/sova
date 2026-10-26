@@ -109,7 +109,8 @@
 
     <!-- Actions -->
     <div class="actions-row">
-      <button class="btn-primary" @click="downloadSarif">📥 Download SARIF Report</button>
+      <button class="btn-primary" @click="downloadReport">📄 Download Security Report</button>
+      <button class="btn-secondary" @click="downloadSarif">📥 Download SARIF</button>
       <button class="btn-secondary" @click="$emit('new-scan')">New Scan</button>
     </div>
   </div>
@@ -246,6 +247,19 @@ const filesBarData = computed(() => {
     }]
   }
 })
+
+async function downloadReport() {
+  const scanId = props.result?.scan_id
+  if (!scanId) return
+  const url = `/api/scan/report/${scanId}`
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `sova-report-${scanId.slice(0,8)}.html`
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
 
 function downloadSarif() {
   if (!sarif.value) return
