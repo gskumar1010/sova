@@ -614,7 +614,11 @@ function downloadSarif() {
   border-top: 1px solid rgba(255,255,255,0.04);
   max-height: 300px;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
+.trace-log::-webkit-scrollbar { width: 4px; }
+.trace-log::-webkit-scrollbar-track { background: transparent; }
+.trace-log::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.2); border-radius: 2px; }
 .trace-empty {
   padding: 0.75rem 1rem;
   font-size: 0.78rem;
