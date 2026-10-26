@@ -31,7 +31,7 @@
 
     <!-- Executive summary -->
     <div v-if="props.result.agent_text" class="exec-summary">
-      <div class="exec-label">Executive Summary</div>
+      <div class="exec-label">Analysis Summary</div>
       <p class="exec-body">{{ props.result.agent_text }}</p>
     </div>
 
