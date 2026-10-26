@@ -23,14 +23,23 @@
 html, body {
   min-height: 100vh;
   background: var(--bg);
-  background-image:
-    linear-gradient(rgba(0,180,255,0.008) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,180,255,0.008) 1px, transparent 1px);
-  background-size: 40px 40px;
   color: var(--text);
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* Grid sits in a fixed layer behind everything — never bleeds through panels */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(0,180,255,0.008) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,180,255,0.008) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
 }
 
 /* Scrollbar */
