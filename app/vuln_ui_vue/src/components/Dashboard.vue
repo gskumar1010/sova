@@ -121,9 +121,9 @@
 
     <!-- Actions -->
     <div class="actions-row">
-      <button class="btn-primary" @click="downloadReport">📄 Download Security Report</button>
-      <button class="btn-secondary" @click="downloadSarif">📥 Download SARIF</button>
-      <button class="btn-secondary" @click="$emit('new-scan')">New Scan</button>
+      <button class="btn-green" @click="downloadReport">📄 Download Security Report</button>
+      <button class="btn-green" @click="downloadSarif">📥 Download SARIF</button>
+      <button class="btn-red" @click="$emit('new-scan')">New Scan</button>
     </div>
   </div>
 </template>
@@ -561,6 +561,32 @@ function downloadSarif() {
   transition: all 0.2s;
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+.btn-green {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.875rem;
+  box-shadow: 0 0 16px rgba(34,197,94,0.2);
+  transition: all 0.2s;
+}
+.btn-green:hover { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 0 24px rgba(34,197,94,0.35); }
+
+.btn-red {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.875rem;
+  box-shadow: 0 0 16px rgba(239,68,68,0.2);
+  transition: all 0.2s;
+}
+.btn-red:hover { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 0 24px rgba(239,68,68,0.35); }
 
 .cwe-badge {
   display: inline-flex; align-items: center;
