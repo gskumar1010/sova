@@ -43,6 +43,7 @@
             :class="{ active: entry.result.scan_id === activeHistoryId }"
             @click="loadHistory(entry)"
           >
+            <button class="hc-delete" @click.stop="deleteHistory(entry.result.scan_id)" title="Remove">✕</button>
             <div class="hc-repo">
               {{ entry.result.git_url.split('/').slice(-2).join('/').replace('.git','') }}
               <span v-if="entry.persisted" class="hc-badge">saved</span>
@@ -185,6 +186,19 @@ function loadHistory(entry) {
   phase.value = 'done'
 }
 
+function deleteHistory(scan_id) {
+  scanHistory.value = scanHistory.value.filter(h => h.result.scan_id !== scan_id)
+  saveHistory(scanHistory.value)
+  // If we deleted the active scan, go back to idle or load next
+  if (activeHistoryId.value === scan_id) {
+    if (scanHistory.value.length) {
+      loadHistory(scanHistory.value[0])
+    } else {
+      resetScan()
+    }
+  }
+}
+
 function resetScan() {
   phase.value = 'idle'
   scanResult.value = null
@@ -269,6 +283,15 @@ function now() {
 .hc-risk { font-size: 1rem; font-weight: 800; line-height: 1; }
 .hc-count { font-size: 0.68rem; color: #475569; }
 .hc-ts { font-size: 0.65rem; color: #334155; margin-left: auto; }
+.hc-delete {
+  position: absolute; top: 0.35rem; right: 0.4rem;
+  background: none; border: none; color: #334155;
+  font-size: 0.65rem; line-height: 1; padding: 2px 4px;
+  border-radius: 3px; opacity: 0; transition: opacity 0.15s, color 0.15s;
+}
+.history-card { position: relative; }
+.history-card:hover .hc-delete { opacity: 1; }
+.hc-delete:hover { color: #ef4444 !important; }
 .hc-badge {
   font-size: 0.55rem; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; background: rgba(0,180,255,0.1);
