@@ -424,7 +424,7 @@ def _run_full_scan(scan_id: str, git_url: str):
             try:
                 import requests as _req
                 top_rules = ", ".join(
-                    f"{r['ruleId']}({r['count']})" for r in summary.get("top_rules", [])[:5]
+                    f"{r['rule_id']}({r['count']})" for r in summary.get("top_rules", [])[:5]
                 )
                 ai_prompt = (
                     f"Security scan of a code repository found {summary['total']} vulnerabilities: "
@@ -533,7 +533,7 @@ def api_chat(request: ChatRequest):
             summary = state.get("summary") or {}
             if summary:
                 top_rules = ", ".join(
-                    f"{r['ruleId']}({r['count']})"
+                    f"{r['rule_id']}({r['count']})"
                     for r in summary.get("top_rules", [])[:5]
                 )
                 context = (
