@@ -727,16 +727,19 @@ def _generate_remediation(scan_id: str):
         cwe_id = f.get("cwe_id", "")
         cwe_str = f" (CWE-{cwe_id})" if cwe_id else ""
 
+        snippet = f.get("snippet", "")
+        snippet_block = f"\nVulnerable code snippet:\n```\n{snippet}\n```\n" if snippet else ""
+
         prompt = (
-            f"Security finding in {file_path} at line {line}:\n"
+            f"Security vulnerability found in `{file_path.split('/')[-1]}` at line {line}:\n"
             f"Rule: {rule_id}{cwe_str}\n"
-            f"Issue: {message}\n\n"
-            f"Read the file at /sandbox/tmp/scan/{'/'.join(file_path.split('/')[-2:])} "
-            f"and show:\n"
-            f"1. The vulnerable code (3-5 lines around line {line})\n"
+            f"Issue: {message}\n"
+            f"{snippet_block}\n"
+            f"Show:\n"
+            f"1. The vulnerable code (if snippet not provided above, write it based on the rule)\n"
             f"2. The fixed version\n"
-            f"3. One sentence: why this fixes it\n\n"
-            f"Format with ```python code blocks. Be concise."
+            f"3. One sentence explaining why the fix works\n\n"
+            f"Use ```python (or appropriate language) code blocks. Be concise."
         )
 
         try:
