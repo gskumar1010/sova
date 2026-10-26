@@ -21,17 +21,17 @@
       </div>
     </div>
 
-    <div class="url-row">
+    <!-- Only show URL input + Scan button when no demo is selected -->
+    <div v-if="!selectedDemo" class="url-row">
       <input
         v-model="customUrl"
         type="text"
-        placeholder="https://github.com/org/repo.git  (or select above)"
+        placeholder="https://github.com/org/repo.git"
         class="url-input"
-        :disabled="!!selectedDemo"
         @keydown.enter="startScan"
         @focus="open=false"
       />
-      <button class="scan-btn" @click="startScan" :disabled="!effectiveUrl">
+      <button class="scan-btn" @click="startScan" :disabled="!customUrl.trim()">
         Scan →
       </button>
     </div>
@@ -108,6 +108,8 @@ function pick(repo) {
   selectedDemo.value = repo.url
   search.value = ''
   open.value = false
+  // Auto-start scan immediately
+  emit('start-scan', repo.url)
 }
 function clear() {
   selectedDemo.value = ''
