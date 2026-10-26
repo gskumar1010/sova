@@ -75,8 +75,8 @@ defineEmits(['toggle-chat'])
 .initial {
   font-size: 2rem;
   font-weight: 800;
-  color: #ef4444;
-  text-shadow: 0 0 12px rgba(239,68,68,0.7), 0 0 24px rgba(239,68,68,0.4);
+  color: #dc2020;
+  text-shadow: 0 0 8px rgba(180,0,0,0.9), 0 0 20px rgba(160,0,0,0.6), 0 0 40px rgba(140,0,0,0.3);
   letter-spacing: 0.02em;
   line-height: 1;
   margin-right: 0.03em;
