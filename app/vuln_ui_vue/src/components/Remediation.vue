@@ -2,7 +2,7 @@
   <div class="remediation">
     <div class="rem-header">
       <span class="rem-icon">🔧</span>
-      <span>AI Remediation — Top {{ fixes.length }} Critical/High Findings</span>
+      <span>AI Remediation — {{ loading ? 'Analysing Critical/High Findings' : `Top ${fixes.length} Critical/High Findings` }}</span>
       <span v-if="loading" class="rem-loading">Generating fixes via nemotron-30b…</span>
     </div>
 
