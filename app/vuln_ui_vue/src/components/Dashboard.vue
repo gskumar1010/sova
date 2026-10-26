@@ -149,6 +149,13 @@ async function loadTrace() {
 
 const ruleFilter = ref('')
 
+// summary must be declared FIRST — useCountUp watches it with { immediate: true }
+const summary = computed(() => props.result.summary || {
+  total: 0, risk: 0,
+  severity_counts: { critical: 0, high: 0, medium: 0, low: 0 },
+  top_rules: [], findings: []
+})
+
 // Count-up animations for all metric cards
 const animRisk     = useCountUp(computed(() => summary.value.risk || 0), 1400)
 const animTotal    = useCountUp(computed(() => summary.value.total || 0), 1200)
@@ -156,12 +163,6 @@ const animCritical = useCountUp(computed(() => summary.value.severity_counts?.cr
 const animHigh     = useCountUp(computed(() => summary.value.severity_counts?.high || 0), 1000)
 const animMedium   = useCountUp(computed(() => summary.value.severity_counts?.medium || 0), 1100)
 const animLow      = useCountUp(computed(() => summary.value.severity_counts?.low || 0), 1200)
-
-const summary = computed(() => props.result.summary || {
-  total: 0, risk: 0,
-  severity_counts: { critical: 0, high: 0, medium: 0, low: 0 },
-  top_rules: [], findings: []
-})
 const sarif = computed(() => props.result.sarif)
 const findings = computed(() => summary.value.findings || [])
 
