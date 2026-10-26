@@ -123,7 +123,7 @@
     <div class="actions-row">
       <button class="btn-green" @click="downloadReport">📄 Download Security Report</button>
       <button class="btn-green" @click="downloadSarif">📥 Download SARIF</button>
-      <button class="btn-red" @click="$emit('new-scan')">New Scan</button>
+      <button class="btn-red" @click="$emit('new-scan')">🔄 New Scan</button>
     </div>
   </div>
 </template>
