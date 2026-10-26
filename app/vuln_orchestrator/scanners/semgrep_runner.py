@@ -30,14 +30,6 @@ def run_semgrep(target_path: str, output_path: Optional[str] = None) -> Dict[str
             "--sarif",
             "--metrics=off",
             "--no-git-ignore",
-            "--include=*.py",
-            "--include=*.js",
-            "--include=*.ts",
-            "--include=*.yaml",
-            "--include=*.yml",
-            "--include=*.json",
-            "--include=Dockerfile*",
-            "--include=*.tf",
             f"--output={sarif_output}",
             target_path
         ]
