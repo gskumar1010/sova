@@ -74,6 +74,8 @@ When analyzing potentially malicious repositories, the security boundary prevent
 
 ## Architecture
 
+![SOVA Architecture](sova-architecture.jpeg)
+
 ```mermaid
 graph TB
     user["User (browser)"]
